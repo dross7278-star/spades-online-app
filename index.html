@@ -1,0 +1,195 @@
+// spadesEngine.js
+
+const SUITS = ['♠', '♥', '♦', '♣'];
+const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+
+function createDeck() {
+  const deck = [];
+  for (const suit of SUITS) {
+    for (const rank of RANKS) {
+      deck.push({ suit, rank, value: RANKS.indexOf(rank) });
+    }
+  }
+  return deck;
+}
+
+function shuffle(deck) {
+  // Fisher-Yates shuffle: swaps each card with a random earlier/later one
+  // so every possible order is equally likely
+  const shuffled = [...deck];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+function dealHands() {
+  const deck = shuffle(createDeck());
+  const hands = [[], [], [], []]; // 4 players, 13 cards each
+  deck.forEach((card, index) => {
+    hands[index % 4].push(card);
+  });
+  return hands;
+}
+
+class SpadesGame {
+  constructor(playerNames, winningScore = 500) {
+    if (playerNames.length !== 4) {
+      throw new Error('Spades requires exactly 4 players');
+    }
+    this.players = playerNames.map(name => ({
+      name,
+      hand: [],
+      tricksWon: 0,
+      bid: null,
+      nilBid: false,
+    }));
+    this.winningScore = winningScore;
+    this.teamScores = [0, 0]; // team 0 = players 0&2, team 1 = players 1&3
+    this.teamBags = [0, 0];
+    this.spadesBroken = false;
+    this.currentTrick = [];
+    this.leadPlayerIndex = 0;
+    this.roundNumber = 0;
+  }
+
+  startRound() {
+    this.roundNumber++;
+    const hands = dealHands();
+    this.players.forEach((player, i) => {
+      player.hand = hands[i];
+      player.tricksWon = 0;
+      player.bid = null;
+      player.nilBid = false;
+    });
+    this.spadesBroken = false;
+    this.currentTrick = [];
+  }
+
+  placeBid(playerIndex, bidAmount) {
+    const player = this.players[playerIndex];
+    if (player.bid !== null) {
+      throw new Error(`${player.name} has already bid`);
+    }
+    player.bid = bidAmount;
+    player.nilBid = bidAmount === 0;
+  }
+
+  allBidsPlaced() {
+    return this.players.every(p => p.bid !== null);
+  }
+
+  playCard(playerIndex, cardIndex) {
+    const player = this.players[playerIndex];
+    const card = player.hand[cardIndex];
+
+    if (!card) throw new Error('Invalid card index');
+    if (!this.isLegalPlay(playerIndex, card)) {
+      throw new Error(`Illegal play: ${card.rank}${card.suit}`);
+    }
+
+    player.hand.splice(cardIndex, 1);
+    this.currentTrick.push({ playerIndex, card });
+
+    if (card.suit === '♠') this.spadesBroken = true;
+
+    if (this.currentTrick.length === 4) {
+      this.resolveTrick();
+    }
+  }
+
+  isLegalPlay(playerIndex, card) {
+    const player = this.players[playerIndex];
+    const leadSuit = this.currentTrick[0]?.card.suit;
+
+    // If leading the trick
+    if (!leadSuit) {
+      if (card.suit === '♠' && !this.spadesBroken) {
+        const hasOnlySpades = player.hand.every(c => c.suit === '♠');
+        return hasOnlySpades; // can't lead spades until broken, unless it's all you have
+      }
+      return true;
+    }
+
+    // Must follow suit if possible
+    const hasLeadSuit = player.hand.some(c => c.suit === leadSuit);
+    if (hasLeadSuit) {
+      return card.suit === leadSuit;
+    }
+
+    return true; // can play anything (including spades) if out of lead suit
+  }
+
+  resolveTrick() {
+    const leadSuit = this.currentTrick[0].card.suit;
+    let winningPlay = this.currentTrick[0];
+
+    for (const play of this.currentTrick) {
+      const isTrump = play.card.suit === '♠';
+      const winningIsTrump = winningPlay.card.suit === '♠';
+
+      if (isTrump && !winningIsTrump) {
+        winningPlay = play;
+      } else if (isTrump && winningIsTrump && play.card.value > winningPlay.card.value) {
+        winningPlay = play;
+      } else if (!isTrump && !winningIsTrump && play.card.suit === leadSuit && play.card.value > winningPlay.card.value) {
+        winningPlay = play;
+      }
+    }
+
+    this.players[winningPlay.playerIndex].tricksWon++;
+    this.leadPlayerIndex = winningPlay.playerIndex;
+    this.currentTrick = [];
+    return winningPlay.playerIndex;
+  }
+
+  isRoundOver() {
+    return this.players.every(p => p.hand.length === 0);
+  }
+
+  scoreRound() {
+    for (let team = 0; team < 2; team++) {
+      const p1 = this.players[team];
+      const p2 = this.players[team + 2];
+      const teamBid = (p1.nilBid ? 0 : p1.bid) + (p2.nilBid ? 0 : p2.bid);
+      const teamTricks = p1.tricksWon + p2.tricksWon;
+
+      let roundScore = 0;
+
+      if (teamTricks >= teamBid) {
+        roundScore += teamBid * 10;
+        const bags = teamTricks - teamBid;
+        roundScore += bags;
+        this.teamBags[team] += bags;
+      } else {
+        roundScore -= teamBid * 10;
+      }
+
+      // Nil bid bonus/penalty
+      [p1, p2].forEach(p => {
+        if (p.nilBid) {
+          roundScore += p.tricksWon === 0 ? 100 : -100;
+        }
+      });
+
+      // Bag penalty: every 10 bags = -100 points
+      while (this.teamBags[team] >= 10) {
+        roundScore -= 100;
+        this.teamBags[team] -= 10;
+      }
+
+      this.teamScores[team] += roundScore;
+    }
+  }
+
+  isGameOver() {
+    return this.teamScores.some(score => score >= this.winningScore);
+  }
+
+  getWinningTeam() {
+    return this.teamScores[0] > this.teamScores[1] ? 0 : 1;
+  }
+}
+
+module.exports = { SpadesGame, createDeck, shuffle, dealHands };
