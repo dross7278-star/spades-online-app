@@ -29,6 +29,9 @@
   let phase = 'bidding';
   let lastTrick = null;
   let computerTimer = null;
+  let dealAnimationTimer = null;
+  let handRevealed = true;
+  let animatedOnlineRound = 0;
   const hand = byId('player-hand');
   const bidForm = byId('bid-form');
   const bidInput = byId('bid-input');
@@ -113,11 +116,26 @@
   function startRound() {
     clearTimeout(computerTimer);
     game.startRound();
+    handRevealed = !game.canPlaceBlindNil(0);
     phase = 'bidding';
     lastTrick = null;
     byId('game-status').textContent = `Opening lead: ${names[game.leadPlayerIndex]}. Place your bid.`;
     byId('score-note').textContent = 'Your partnership is seated North–South.';
     render();
+    animateDeal();
+  }
+  function animateDeal() {
+    const tableSurface = document.querySelector('.table-surface');
+    tableSurface.classList.remove('is-shuffling');
+    hand.classList.remove('is-dealing');
+    void tableSurface.offsetWidth;
+    tableSurface.classList.add('is-shuffling');
+    hand.classList.add('is-dealing');
+    clearTimeout(dealAnimationTimer);
+    dealAnimationTimer = setTimeout(() => {
+      tableSurface.classList.remove('is-shuffling');
+      hand.classList.remove('is-dealing');
+    }, 1500);
   }
   function estimateBid(cards) {
     let strength = 0;
@@ -219,6 +237,8 @@
     names = state.players.map(player => player.name);
     variant = state.variant;
     winningScore = state.winningScore;
+    hand.hidden = Boolean(state.handHidden);
+    byId('blind-nil-notice').hidden = !state.canBlindNil;
     byId('round-label').textContent = `HAND ${String(state.roundNumber).padStart(2, '0')}`;
     byId('score-team-0').textContent = state.teamScores[0];
     byId('score-team-1').textContent = state.teamScores[1];
@@ -235,7 +255,7 @@
     state.players.forEach((player, index) => {
       if (index === onlineSeatIndex) return;
       const active = state.phase === 'play' && state.currentPlayerIndex === index;
-      const bid = player.bid === null ? 'Waiting to bid' : `Bid ${player.bid === 0 ? 'Nil' : player.bid}`;
+      const bid = player.bid === null ? 'Waiting to bid' : player.blindNil ? 'Blind Nil' : `Bid ${player.bid === 0 ? 'Nil' : player.bid}`;
       const color = index === 1 ? 'avatar-coral' : index === 2 ? 'avatar-gold' : 'avatar-blue';
       const roles = seatRoleBadges(index, state.dealerIndex, state.leadPlayerIndex);
       byId(seatIds[index]).innerHTML = `<span class="seat-avatar ${color}">${escapeHtml(player.name[0])}</span><span class="seat-copy"><strong>${escapeHtml(player.name)}</strong><small>${player.connected ? bid : 'Disconnected'} · ${player.tricksWon} tricks</small>${roles}</span><span class="turn-indicator ${active ? 'is-active' : ''}"></span>`;
@@ -249,9 +269,13 @@
       const label = `${cardDisplayName(card)}${legal ? ', play card' : ''}`;
       return `<button class="playing-card ${isRed(card.suit) ? 'red-suit' : ''} ${state.phase === 'play' && state.currentPlayerIndex === onlineSeatIndex && !legal ? 'is-illegal' : ''}" type="button" data-card-index="${index}" aria-label="${label}" title="${label}" style="--card-order:${order}" ${legal ? '' : 'disabled'}><span class="card-rank">${escapeHtml(card.rank)}</span><span class="card-suit">${escapeHtml(card.suit)}</span><span class="card-corner" aria-hidden="true">${escapeHtml(card.rank)}<br>${escapeHtml(card.suit)}</span></button>`;
     }).join('');
-    bidForm.hidden = state.phase !== 'bidding' || state.players[onlineSeatIndex].bid !== null;
+    bidForm.hidden = state.phase !== 'bidding' || state.players[onlineSeatIndex].bid !== null || state.handHidden;
     byId('next-hand-button').hidden = state.phase !== 'round-over';
     byId('new-match-button').hidden = state.phase !== 'game-over';
+    if (state.roundNumber > 0 && state.roundNumber !== animatedOnlineRound) {
+      animatedOnlineRound = state.roundNumber;
+      animateDeal();
+    }
     const myTurn = state.currentPlayerIndex === onlineSeatIndex;
     byId('action-hint').textContent = state.phase === 'lobby' ? 'Waiting for four players to join.'
       : state.phase === 'bidding' ? (state.players[onlineSeatIndex].bid === null ? 'Place your bid.' : 'Waiting for the other bids.')
@@ -318,7 +342,7 @@
     const rows = players.map((entry, index) => ({ ...entry, index }))
       .sort((first, second) => second.tricksWon - first.tricksWon || first.index - second.index);
     byId('leaderboard-rows').innerHTML = rows.map((entry, rank) => {
-      const bid = entry.bid === null || entry.bid === undefined ? '—' : entry.bid === 0 ? 'Nil' : entry.bid;
+      const bid = entry.bid === null || entry.bid === undefined ? '—' : entry.blindNil ? 'Blind Nil' : entry.bid === 0 ? 'Nil' : entry.bid;
       const seatLabel = mode === 'online'
         ? (entry.connected ? 'Online' : 'Disconnected')
         : entry.index === 0 ? 'You' : 'CPU';
@@ -343,7 +367,7 @@
     for (const index of [1, 2, 3]) {
       const player = game.players[index];
       const active = phase === 'play' && game.currentPlayerIndex === index;
-      const bid = player.bid === null ? 'Waiting to bid' : `Bid ${player.bid === 0 ? 'Nil' : player.bid}`;
+      const bid = player.bid === null ? 'Waiting to bid' : player.blindNil ? 'Blind Nil' : `Bid ${player.bid === 0 ? 'Nil' : player.bid}`;
       const color = index === 1 ? 'avatar-coral' : index === 2 ? 'avatar-gold' : 'avatar-blue';
       const roles = seatRoleBadges(index, game.dealerIndex, game.leadPlayerIndex);
       byId(seatIds[index]).innerHTML = `<span class="seat-avatar ${color}">${escapeHtml(player.name[0])}</span><span class="seat-copy"><strong>${escapeHtml(player.name)}</strong><small>${bid} · ${player.tricksWon} tricks</small>${roles}</span><span class="turn-indicator ${active ? 'is-active' : ''}"></span>`;
@@ -355,7 +379,7 @@
     const avatar = profilePhoto
       ? `<img class="avatar-photo" src="${profilePhoto}" alt="">`
       : `<span class="avatar-initial">${initial}</span>`;
-    const bid = player.bid === null ? 'Waiting to bid' : `Bid ${player.bid === 0 ? 'Nil' : player.bid}`;
+    const bid = player.bid === null ? 'Waiting to bid' : player.blindNil ? 'Blind Nil' : `Bid ${player.bid === 0 ? 'Nil' : player.bid}`;
     const trickLabel = player.tricksWon === 1 ? '1 trick won' : `${player.tricksWon} tricks won`;
     const roles = seatRoleBadges(mode === 'online' ? onlineSeatIndex : 0, dealerIndex, leadPlayerIndex);
     byId('seat-0').innerHTML = `<button class="seat-photo-button ${profilePhoto ? 'has-photo' : ''}" id="seat-photo-button" type="button" aria-label="${profilePhoto ? 'Change' : 'Add'} ${escapeHtml(player.name)}'s photo">${avatar}</button><span class="seat-copy"><strong>${escapeHtml(player.name)}</strong><small>${bid} · ${trickLabel}</small>${roles}</span><span class="turn-indicator ${active ? 'is-active' : ''}"></span>`;
@@ -372,6 +396,13 @@
     byId('trick-cards').innerHTML = plays.map(play => `<div class="played-card ${positions[play.playerIndex]} ${isRed(play.card.suit) ? 'red-suit' : ''}"><span>${play.card.rank}</span><span>${play.card.suit}</span></div>`).join('');
   }
   function renderHand() {
+    const blindAvailable = mode === 'local' && phase === 'bidding' && !handRevealed && game.canPlaceBlindNil(0);
+    hand.hidden = blindAvailable;
+    byId('blind-nil-notice').hidden = !blindAvailable;
+    if (blindAvailable) {
+      hand.innerHTML = '';
+      return;
+    }
     const humanTurn = phase === 'play' && game.currentPlayerIndex === 0;
     const cards = game.players[0].hand.map((card, index) => ({ card, index })).sort((a, b) => suitOrder[a.card.suit] - suitOrder[b.card.suit] || a.card.value - b.card.value);
     hand.innerHTML = cards.map(({ card, index }, order) => {
@@ -381,7 +412,9 @@
     }).join('');
   }
   function renderControls() {
-    bidForm.hidden = phase !== 'bidding';
+    const blindAvailable = phase === 'bidding' && !handRevealed && game.canPlaceBlindNil(0);
+    bidForm.hidden = phase !== 'bidding' || blindAvailable;
+    byId('blind-nil-notice').hidden = !blindAvailable;
     byId('next-hand-button').hidden = phase !== 'round-over';
     byId('new-match-button').hidden = phase !== 'game-over';
     const humanTurn = phase === 'play' && game.currentPlayerIndex === 0;
@@ -506,6 +539,31 @@
       render();
       if (game.currentPlayerIndex !== 0) scheduleComputerTurn();
     } catch (error) { byId('game-status').textContent = error.message; }
+  });
+  byId('reveal-hand-button').addEventListener('click', () => {
+    if (mode === 'online') {
+      sendOnlineAction('reveal-hand');
+      return;
+    }
+    handRevealed = true;
+    render();
+  });
+  byId('blind-nil-button').addEventListener('click', () => {
+    if (mode === 'online') {
+      sendOnlineAction('blind-nil');
+      return;
+    }
+    try {
+      game.placeBlindNil(0);
+      [1, 2, 3].forEach(index => game.placeBid(index, estimateBid(game.players[index].hand)));
+      phase = 'play';
+      handRevealed = true;
+      byId('game-status').textContent = 'You bid Blind Nil. The hand is now revealed.';
+      render();
+      if (game.currentPlayerIndex !== 0) scheduleComputerTurn();
+    } catch (error) {
+      byId('game-status').textContent = error.message;
+    }
   });
   hand.addEventListener('click', event => {
     const button = event.target.closest('[data-card-index]');

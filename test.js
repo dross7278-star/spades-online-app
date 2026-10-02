@@ -18,6 +18,37 @@ for (const target of [200, 300, 500]) {
 }
 assert.throws(() => new SpadesGame(['Alice', 'Bob', 'Carol', 'Dave'], 250), /Winning score/);
 
+function createBlindNilTestGame(scoreGap) {
+	const blindGame = new SpadesGame(['You', 'West', 'Partner', 'East']);
+	blindGame.teamScores = [0, scoreGap];
+	blindGame.startRound();
+	return blindGame;
+}
+
+const blindNilSuccess = createBlindNilTestGame(100);
+assert.equal(blindNilSuccess.canPlaceBlindNil(0), true);
+blindNilSuccess.placeBlindNil(0);
+assert.equal(blindNilSuccess.players[0].blindNil, true);
+assert.equal(blindNilSuccess.canPlaceBlindNil(2), false, 'only one teammate can bid Blind Nil');
+blindNilSuccess.placeBid(1, 1);
+blindNilSuccess.placeBid(2, 1);
+blindNilSuccess.placeBid(3, 1);
+blindNilSuccess.players.forEach(player => { player.hand = []; });
+blindNilSuccess.players[2].tricksWon = 1;
+blindNilSuccess.scoreRound();
+assert.equal(blindNilSuccess.teamScores[0], 160, 'one contract point plus 150 successful Blind Nil points');
+
+const blindNilFailure = createBlindNilTestGame(100);
+blindNilFailure.placeBlindNil(0);
+blindNilFailure.placeBid(1, 1);
+blindNilFailure.placeBid(2, 1);
+blindNilFailure.placeBid(3, 1);
+blindNilFailure.players.forEach(player => { player.hand = []; });
+blindNilFailure.players[0].tricksWon = 1;
+blindNilFailure.scoreRound();
+assert.equal(blindNilFailure.teamScores[0], -90, 'one contract point less the 100-point failed Blind Nil penalty');
+assert.equal(createBlindNilTestGame(99).canPlaceBlindNil(0), false);
+
 const rotationGame = new SpadesGame(['Alice', 'Bob', 'Carol', 'Dave']);
 const dealerRotation = [];
 const leaderRotation = [];

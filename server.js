@@ -75,7 +75,7 @@ function assignSocket(socket, room, seatIndex, name, token) {
     assignedSeats.delete(seat.socket);
     seat.socket.close(4001, 'Seat reconnected');
   }
-  room.seats[seatIndex] = { name, token, socket };
+  room.seats[seatIndex] = { name, token, socket, handRevealed: seat?.handRevealed || false };
   assignedSeats.set(socket, { room, seatIndex });
   if (!room.game && room.seats.every(Boolean)) {
     room.game = new SpadesGame(room.seats.map(player => player.name), room.winningScore, room.variant);
@@ -116,7 +116,10 @@ function joinRoom(socket, message) {
 
 function stateFor(room, seatIndex) {
   const game = room.game;
-  const ownHand = game ? game.players[seatIndex].hand : [];
+  const seat = room.seats[seatIndex];
+  const canBlindNil = Boolean(game && room.phase === 'bidding' && !seat?.handRevealed && game.canPlaceBlindNil(seatIndex));
+  const handHidden = canBlindNil;
+  const ownHand = game && !handHidden ? game.players[seatIndex].hand : [];
   const legalIndices = game && room.phase === 'play' && game.currentPlayerIndex === seatIndex
     ? ownHand.reduce((indices, card, index) => game.isLegalPlay(seatIndex, card) ? [...indices, index] : indices, [])
     : [];
@@ -128,10 +131,13 @@ function stateFor(room, seatIndex) {
     phase: room.phase,
     message: room.message,
     seatIndex,
+    canBlindNil,
+    handHidden,
     players: room.seats.map((seat, index) => ({
       name: game?.players[index].name || seat?.name || 'Open seat',
       connected: Boolean(seat?.socket && seat.socket.readyState === WebSocket.OPEN),
       bid: game?.players[index].bid ?? null,
+      blindNil: game?.players[index].blindNil || false,
       tricksWon: game?.players[index].tricksWon || 0,
     })),
     hand: ownHand,
@@ -162,11 +168,30 @@ function handleAction(socket, message) {
 
   if (message.action === 'bid') {
     if (room.phase !== 'bidding') return sendError(socket, 'Bidding is not open.');
+    if (game.canPlaceBlindNil(seatIndex) && !room.seats[seatIndex].handRevealed) {
+      return sendError(socket, 'Reveal your hand before placing a regular bid, or choose Blind Nil.');
+    }
     game.placeBid(seatIndex, Number(message.amount));
+    room.seats[seatIndex].handRevealed = true;
     if (game.allBidsPlaced()) {
       room.phase = 'play';
       room.message = `${game.players[game.currentPlayerIndex].name} leads.`;
     } else room.message = `${game.players[seatIndex].name} placed a bid.`;
+  } else if (message.action === 'reveal-hand') {
+    if (room.phase !== 'bidding') return sendError(socket, 'The hand can only be revealed during bidding.');
+    if (!game.canPlaceBlindNil(seatIndex)) return sendError(socket, 'Blind Nil is not available for this seat.');
+    if (room.seats[seatIndex].handRevealed) return sendError(socket, 'The hand is already revealed.');
+    room.seats[seatIndex].handRevealed = true;
+    room.message = `${game.players[seatIndex].name} revealed their hand to bid.`;
+  } else if (message.action === 'blind-nil') {
+    if (room.phase !== 'bidding') return sendError(socket, 'Blind Nil is only available during bidding.');
+    if (room.seats[seatIndex].handRevealed) return sendError(socket, 'Blind Nil must be declared before revealing your hand.');
+    game.placeBlindNil(seatIndex);
+    room.seats[seatIndex].handRevealed = true;
+    if (game.allBidsPlaced()) {
+      room.phase = 'play';
+      room.message = `${game.players[game.currentPlayerIndex].name} leads.`;
+    } else room.message = `${game.players[seatIndex].name} bid Blind Nil.`;
   } else if (message.action === 'play') {
     if (room.phase !== 'play') return sendError(socket, 'Cards cannot be played right now.');
     const winner = game.playCard(seatIndex, Number(message.cardIndex));
@@ -180,6 +205,7 @@ function handleAction(socket, message) {
     }
   } else if (message.action === 'next-hand') {
     if (room.phase !== 'round-over') return sendError(socket, 'The current hand is not complete.');
+    room.seats.forEach(seat => { if (seat) seat.handRevealed = false; });
     game.startRound();
     room.phase = 'bidding';
     room.message = 'New hand dealt. Place your bids.';
@@ -188,6 +214,7 @@ function handleAction(socket, message) {
     game.teamScores = [0, 0];
     game.teamBags = [0, 0];
     game.roundNumber = 0;
+    room.seats.forEach(seat => { if (seat) seat.handRevealed = false; });
     room.phase = 'bidding';
     game.startRound();
     room.message = 'New match. Place your bids.';

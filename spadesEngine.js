@@ -51,7 +51,7 @@
       if (!Array.isArray(playerNames) || playerNames.length !== 4) throw new Error('Spades requires exactly 4 players');
       if (![200, 300, 500].includes(winningScore)) throw new Error('Winning score must be 200, 300, or 500');
       if (variant !== 'standard' && variant !== 'jjda') throw new Error('Unknown Spades rules variant');
-      this.players = playerNames.map(name => ({ name, hand: [], tricksWon: 0, bid: null, nilBid: false }));
+      this.players = playerNames.map(name => ({ name, hand: [], tricksWon: 0, bid: null, nilBid: false, blindNil: false }));
       this.winningScore = winningScore;
       this.variant = variant;
       this.teamScores = [0, 0];
@@ -69,7 +69,7 @@
       this.dealerIndex = (this.dealerIndex + 1) % 4;
       const hands = dealHands(this.variant);
       this.players.forEach((player, index) => {
-        player.hand = hands[index]; player.tricksWon = 0; player.bid = null; player.nilBid = false;
+        player.hand = hands[index]; player.tricksWon = 0; player.bid = null; player.nilBid = false; player.blindNil = false;
       });
       this.spadesBroken = false;
       this.currentTrick = [];
@@ -84,6 +84,22 @@
       if (player.bid !== null) throw new Error(`${player.name} has already bid`);
       player.bid = bidAmount;
       player.nilBid = bidAmount === 0;
+    }
+    canPlaceBlindNil(playerIndex) {
+      const player = this.players[playerIndex];
+      if (!player || this.roundNumber === 0 || player.bid !== null) return false;
+      const team = playerIndex % 2;
+      if (this.teamScores[team] > this.teamScores[1 - team] - 100) return false;
+      return !this.players.some((teammate, index) => index % 2 === team && teammate.blindNil);
+    }
+    placeBlindNil(playerIndex) {
+      if (!this.canPlaceBlindNil(playerIndex)) {
+        throw new Error('Blind Nil is only available once per team per hand when your team is at least 100 points behind.');
+      }
+      const player = this.players[playerIndex];
+      player.bid = 0;
+      player.nilBid = true;
+      player.blindNil = true;
     }
     allBidsPlaced() { return this.players.every(player => player.bid !== null); }
     playCard(playerIndex, cardIndex) {
@@ -143,7 +159,9 @@
           score += bags;
           this.teamBags[team] += bags;
         } else score -= bid * 10;
-        players.forEach(player => { if (player.nilBid) score += player.tricksWon === 0 ? 100 : -100; });
+        players.forEach(player => {
+          if (player.nilBid) score += player.tricksWon === 0 ? (player.blindNil ? 150 : 100) : -100;
+        });
         while (this.teamBags[team] >= 10) { score -= 100; this.teamBags[team] -= 10; }
         this.teamScores[team] += score;
       }

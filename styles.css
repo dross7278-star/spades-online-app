@@ -323,6 +323,54 @@ body { background-color:#060b13; background-image:linear-gradient(135deg,rgba(26
 	.page-footer { display:none; }
 	.secondary-view { min-height:0; padding:16px 0 20px; }
 }
+.shuffle-deck { position:absolute; z-index:8; top:50%; left:50%; width:43px; height:62px; opacity:0; pointer-events:none; transform:translate(-50%,-50%); }
+.shuffle-card { position:absolute; inset:0; display:grid; place-items:center; color:#83ffd5; border:1px solid rgba(107,255,214,.7); border-radius:7px; background:linear-gradient(145deg,#184a4a,#0a1d2a); box-shadow:0 8px 24px rgba(0,0,0,.45),0 0 16px rgba(77,248,202,.2); font-size:24px; }
+.shuffle-card-left { z-index:1; }
+.shuffle-card-right { z-index:2; }
+.shuffle-card-back { z-index:3; }
+.shuffle-card-left { transform:translate(-5px,4px) rotate(-9deg); }
+.shuffle-card-right { transform:translate(5px,2px) rotate(8deg); }
+.playing-card { animation:none; animation-delay:0s; }
+.table-surface.is-shuffling .shuffle-deck { opacity:1; animation:shuffle-sweep 1.25s ease-in-out both; }
+.table-surface.is-shuffling .shuffle-card-left { animation:shuffle-left .32s ease-in-out 3; }
+.table-surface.is-shuffling .shuffle-card-right { animation:shuffle-right .32s ease-in-out 3; }
+.hand.is-dealing .playing-card { animation:deal-from-deck .42s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(.38s + var(--card-order)*24ms); }
+.blind-nil-notice { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:8px 9px; padding:12px 14px; border:1px solid rgba(173,126,255,.42); border-radius:12px; background:linear-gradient(120deg,rgba(75,40,112,.2),rgba(9,22,34,.94)); box-shadow:0 0 24px rgba(153,99,255,.1); }
+.blind-nil-notice p { margin:5px 0 0; color:#a9b6c7; font-size:10px; line-height:1.4; }
+.blind-nil-actions { display:flex; flex-shrink:0; gap:7px; }
+.blind-nil-actions .primary-button,.blind-nil-actions .secondary-button { min-height:34px; padding:0 10px; font-size:9px; }
+.blind-nil-actions .primary-button { color:#f4eaff; border-color:rgba(181,119,255,.75); background:linear-gradient(110deg,#7538c4,#a844dd); box-shadow:0 4px 18px rgba(157,81,237,.2); }
+.blind-nil-actions .primary-button:hover { background:linear-gradient(110deg,#884bdb,#bd5aee); }
+.blind-nil-actions .secondary-button { min-height:34px; }
+.blind-nil-notice .eyebrow { color:#d6c0ff; }
+.blind-nil-notice .primary-button { min-height:38px; }
+.blind-nil-notice .secondary-button { min-height:38px; }
+@keyframes shuffle-sweep {
+	0% { opacity:0; transform:translate(-50%,-50%) scale(.7) rotate(0); }
+	12% { opacity:1; }
+	30% { transform:translate(calc(-50% - 18px),-50%) scale(1.02) rotate(-11deg); }
+	49% { transform:translate(calc(-50% + 19px),-50%) scale(1.04) rotate(10deg); }
+	67% { transform:translate(calc(-50% - 13px),-50%) scale(1) rotate(-7deg); }
+	83% { transform:translate(calc(-50% + 8px),-50%) scale(.98) rotate(4deg); }
+	100% { opacity:0; transform:translate(-50%,-50%) scale(.78) rotate(0); }
+}
+@keyframes shuffle-left { 50% { transform:translate(-13px,-5px) rotate(-15deg); } }
+@keyframes shuffle-right { 50% { transform:translate(13px,-3px) rotate(14deg); } }
+@keyframes deal-from-deck {
+	0% { opacity:0; transform:translateY(-37px) scale(.62) rotate(7deg); }
+	68% { opacity:1; transform:translateY(4px) scale(1.03) rotate(-1deg); }
+	100% { opacity:1; transform:translateY(0) scale(1) rotate(0); }
+}
+@media (max-width:620px) {
+	.blind-nil-notice { align-items:flex-start; flex-direction:column; gap:9px; margin:7px 0; padding:10px 11px; }
+	.blind-nil-notice p { font-size:9px; }
+	.blind-nil-actions { width:100%; }
+	.blind-nil-actions button { flex:1; }
+}
+@media (prefers-reduced-motion:reduce) {
+	.table-surface.is-shuffling .shuffle-deck,.table-surface.is-shuffling .shuffle-card-left,.table-surface.is-shuffling .shuffle-card-right { animation:none; }
+	.hand.is-dealing .playing-card { animation:none; opacity:1; }
+}
 .round-tracker { margin-top:11px; padding:12px 14px 11px; border:1px solid rgba(98,225,210,.15); border-radius:11px; background:linear-gradient(120deg,rgba(13,33,41,.92),rgba(7,19,27,.94)); }
 .tracker-heading,.tracker-footer { display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .tracker-heading > span:last-child { color:#a9c5c0; font:400 9px 'Space Mono',monospace; }

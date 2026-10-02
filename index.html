@@ -91,6 +91,7 @@
         <section class="table-area" aria-label="Game table">
           <div class="table-surface">
             <div class="table-grain" aria-hidden="true"></div>
+            <div class="shuffle-deck" id="shuffle-deck" aria-hidden="true"><span class="shuffle-card shuffle-card-back">♠</span><span class="shuffle-card shuffle-card-left">♠</span><span class="shuffle-card shuffle-card-right">♠</span></div>
             <div class="seat seat-north" id="seat-2"></div><div class="seat seat-west" id="seat-1"></div><div class="seat seat-east" id="seat-3"></div>
             <div class="seat seat-south" id="seat-0"></div>
             <div class="table-center"><div class="trick-status" id="game-status" aria-live="polite">Your hand is ready.</div><div class="trick-cards" id="trick-cards" aria-label="Cards played this trick"></div><div class="trick-caption" id="trick-caption">13 TRICKS TO PLAY</div></div>
@@ -99,6 +100,10 @@
           <section class="player-area" aria-label="Your hand and controls">
             <div class="player-heading"><div><span class="eyebrow">YOUR HAND</span><span class="hand-count" id="hand-count">13 cards</span></div><div class="trump-state" id="trump-state"><span class="trump-icon">♠</span> Spades unbroken</div></div>
             <div class="hand" id="player-hand" aria-label="Your cards"></div>
+            <section class="blind-nil-notice" id="blind-nil-notice" aria-live="polite" hidden>
+              <div><span class="eyebrow">BLIND NIL AVAILABLE</span><p>Available when your team trails by 100+. Take no tricks for +150; taking a trick costs 100.</p></div>
+              <div class="blind-nil-actions"><button class="primary-button" id="blind-nil-button" type="button">Bid Blind Nil</button><button class="secondary-button" id="reveal-hand-button" type="button">Reveal hand</button></div>
+            </section>
             <div class="bottom-controls"><p class="action-hint" id="action-hint">Choose your bid to begin.</p><form class="bid-control" id="bid-form"><label for="bid-input">Your bid</label><input id="bid-input" type="number" min="0" max="13" value="4" aria-label="Your bid, zero is nil"><button class="primary-button" id="bid-button" type="submit">Place bid</button></form><button class="primary-button next-button" id="next-hand-button" type="button" hidden>Deal next hand <span aria-hidden="true">→</span></button><button class="primary-button next-button" id="new-match-button" type="button" hidden>New match <span aria-hidden="true">↻</span></button></div>
             <section class="round-tracker" aria-label="Hand progress">
               <div class="tracker-heading"><span class="eyebrow">HAND PROGRESS</span><span id="tracker-count">0 / 13 tricks</span></div>
