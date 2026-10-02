@@ -1,0 +1,59 @@
+{
+  "name": "spades-online-app",
+  "version": "1.0.0",
+  "private": true,
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js",
+    "desktop": "electron .",
+    "build:win": "electron-builder --win nsis portable"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  },
+  "build": {
+    "appId": "com.dross7278.spades",
+    "productName": "Spades",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "app.js",
+      "index.html",
+      "spadesEngine.js",
+      "styles.css",
+      "server.js",
+      "desktop/**",
+      "node_modules/ws/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  }
+}

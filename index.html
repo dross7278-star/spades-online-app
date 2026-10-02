@@ -1,195 +1,133 @@
-// spadesEngine.js
-
-const SUITS = ['♠', '♥', '♦', '♣'];
-const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-
-function createDeck() {
-  const deck = [];
-  for (const suit of SUITS) {
-    for (const rank of RANKS) {
-      deck.push({ suit, rank, value: RANKS.indexOf(rank) });
-    }
-  }
-  return deck;
-}
-
-function shuffle(deck) {
-  // Fisher-Yates shuffle: swaps each card with a random earlier/later one
-  // so every possible order is equally likely
-  const shuffled = [...deck];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
-
-function dealHands() {
-  const deck = shuffle(createDeck());
-  const hands = [[], [], [], []]; // 4 players, 13 cards each
-  deck.forEach((card, index) => {
-    hands[index % 4].push(card);
-  });
-  return hands;
-}
-
-class SpadesGame {
-  constructor(playerNames, winningScore = 500) {
-    if (playerNames.length !== 4) {
-      throw new Error('Spades requires exactly 4 players');
-    }
-    this.players = playerNames.map(name => ({
-      name,
-      hand: [],
-      tricksWon: 0,
-      bid: null,
-      nilBid: false,
-    }));
-    this.winningScore = winningScore;
-    this.teamScores = [0, 0]; // team 0 = players 0&2, team 1 = players 1&3
-    this.teamBags = [0, 0];
-    this.spadesBroken = false;
-    this.currentTrick = [];
-    this.leadPlayerIndex = 0;
-    this.roundNumber = 0;
-  }
-
-  startRound() {
-    this.roundNumber++;
-    const hands = dealHands();
-    this.players.forEach((player, i) => {
-      player.hand = hands[i];
-      player.tricksWon = 0;
-      player.bid = null;
-      player.nilBid = false;
-    });
-    this.spadesBroken = false;
-    this.currentTrick = [];
-  }
-
-  placeBid(playerIndex, bidAmount) {
-    const player = this.players[playerIndex];
-    if (player.bid !== null) {
-      throw new Error(`${player.name} has already bid`);
-    }
-    player.bid = bidAmount;
-    player.nilBid = bidAmount === 0;
-  }
-
-  allBidsPlaced() {
-    return this.players.every(p => p.bid !== null);
-  }
-
-  playCard(playerIndex, cardIndex) {
-    const player = this.players[playerIndex];
-    const card = player.hand[cardIndex];
-
-    if (!card) throw new Error('Invalid card index');
-    if (!this.isLegalPlay(playerIndex, card)) {
-      throw new Error(`Illegal play: ${card.rank}${card.suit}`);
-    }
-
-    player.hand.splice(cardIndex, 1);
-    this.currentTrick.push({ playerIndex, card });
-
-    if (card.suit === '♠') this.spadesBroken = true;
-
-    if (this.currentTrick.length === 4) {
-      this.resolveTrick();
-    }
-  }
-
-  isLegalPlay(playerIndex, card) {
-    const player = this.players[playerIndex];
-    const leadSuit = this.currentTrick[0]?.card.suit;
-
-    // If leading the trick
-    if (!leadSuit) {
-      if (card.suit === '♠' && !this.spadesBroken) {
-        const hasOnlySpades = player.hand.every(c => c.suit === '♠');
-        return hasOnlySpades; // can't lead spades until broken, unless it's all you have
-      }
-      return true;
-    }
-
-    // Must follow suit if possible
-    const hasLeadSuit = player.hand.some(c => c.suit === leadSuit);
-    if (hasLeadSuit) {
-      return card.suit === leadSuit;
-    }
-
-    return true; // can play anything (including spades) if out of lead suit
-  }
-
-  resolveTrick() {
-    const leadSuit = this.currentTrick[0].card.suit;
-    let winningPlay = this.currentTrick[0];
-
-    for (const play of this.currentTrick) {
-      const isTrump = play.card.suit === '♠';
-      const winningIsTrump = winningPlay.card.suit === '♠';
-
-      if (isTrump && !winningIsTrump) {
-        winningPlay = play;
-      } else if (isTrump && winningIsTrump && play.card.value > winningPlay.card.value) {
-        winningPlay = play;
-      } else if (!isTrump && !winningIsTrump && play.card.suit === leadSuit && play.card.value > winningPlay.card.value) {
-        winningPlay = play;
-      }
-    }
-
-    this.players[winningPlay.playerIndex].tricksWon++;
-    this.leadPlayerIndex = winningPlay.playerIndex;
-    this.currentTrick = [];
-    return winningPlay.playerIndex;
-  }
-
-  isRoundOver() {
-    return this.players.every(p => p.hand.length === 0);
-  }
-
-  scoreRound() {
-    for (let team = 0; team < 2; team++) {
-      const p1 = this.players[team];
-      const p2 = this.players[team + 2];
-      const teamBid = (p1.nilBid ? 0 : p1.bid) + (p2.nilBid ? 0 : p2.bid);
-      const teamTricks = p1.tricksWon + p2.tricksWon;
-
-      let roundScore = 0;
-
-      if (teamTricks >= teamBid) {
-        roundScore += teamBid * 10;
-        const bags = teamTricks - teamBid;
-        roundScore += bags;
-        this.teamBags[team] += bags;
-      } else {
-        roundScore -= teamBid * 10;
-      }
-
-      // Nil bid bonus/penalty
-      [p1, p2].forEach(p => {
-        if (p.nilBid) {
-          roundScore += p.tricksWon === 0 ? 100 : -100;
-        }
-      });
-
-      // Bag penalty: every 10 bags = -100 points
-      while (this.teamBags[team] >= 10) {
-        roundScore -= 100;
-        this.teamBags[team] -= 10;
-      }
-
-      this.teamScores[team] += roundScore;
-    }
-  }
-
-  isGameOver() {
-    return this.teamScores.some(score => score >= this.winningScore);
-  }
-
-  getWinningTeam() {
-    return this.teamScores[0] > this.teamScores[1] ? 0 : 1;
-  }
-}
-
-module.exports = { SpadesGame, createDeck, shuffle, dealHands };
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#173b30">
+    <title>Spades | Table 04</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="spadesEngine.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Spades table home"><span class="brand-mark" aria-hidden="true">♠</span><span class="brand-name">Spades<span class="brand-period">.</span></span></a>
+        <div class="table-meta"><span class="live-dot" aria-hidden="true"></span><span>TABLE 04</span><span class="meta-divider"></span><span id="round-label">HAND 01</span></div>
+        <div class="header-actions">
+          <button class="icon-button" id="online-button" type="button" title="Play with friends online" aria-label="Play with friends online"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></button>
+          <button class="icon-button" id="settings-button" type="button" title="Player names and rules" aria-label="Player names and rules"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0M19 8v6m-3-3h6"/></svg></button>
+          <button class="icon-button" id="new-game-button" type="button" title="Start a new game" aria-label="Start a new game"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4.8 9a7.5 7.5 0 0 1 12.8-2L20 9M4 17v-5h5m10.2 3a7.5 7.5 0 0 1-12.8 2L4 15"/></svg></button>
+        </div>
+      </header>
+      <nav class="app-nav" aria-label="Game sections">
+        <button class="nav-tab is-active" type="button" data-view-target="match-view" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 8h4v4H7zM14 8h3M14 12h3M7 16h10"/></svg>Live match</button>
+        <button class="nav-tab" type="button" data-view-target="lobby-view"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM8 9h.01M12 9h.01M16 9h.01M8 13h.01M12 13h.01M16 13h.01M8 17h8"/></svg>Game lobby</button>
+        <button class="nav-tab" type="button" data-view-target="leaderboard-view"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-7M3 20h18"/></svg>Leaderboard</button>
+        <button class="nav-tab profile-tab" type="button" data-open-settings aria-label="Open profile and settings"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>Profile</button>
+      </nav>
+      <dialog class="settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
+        <form id="settings-form">
+          <div class="dialog-heading"><span class="eyebrow">TABLE SETUP</span><button class="dialog-close" id="close-settings" type="button" aria-label="Close settings">×</button></div>
+          <h1 id="settings-title">Your table, your rules.</h1>
+          <p class="dialog-copy">Set the four seats and choose the deck for your next match.</p>
+          <div class="name-fields">
+            <label class="name-field">South · You<input name="player-name" data-player-index="0" maxlength="20" required autocomplete="nickname"></label>
+            <label class="name-field">West<input name="player-name" data-player-index="1" maxlength="20" required></label>
+            <label class="name-field">North · Partner<input name="player-name" data-player-index="2" maxlength="20" required></label>
+            <label class="name-field">East<input name="player-name" data-player-index="3" maxlength="20" required></label>
+          </div>
+          <section class="photo-field" aria-label="Your profile photo">
+            <span class="eyebrow">YOUR PHOTO</span>
+            <div class="photo-editor">
+              <button class="photo-preview" id="photo-preview" type="button" aria-label="Choose a profile photo">
+                <img id="photo-preview-image" alt="" hidden>
+                <span id="photo-preview-initial">Y</span>
+              </button>
+              <div class="photo-actions">
+                <button class="text-button" id="choose-photo" type="button">Choose photo</button>
+                <button class="text-button" id="remove-photo" type="button" hidden>Remove photo</button>
+                <p class="photo-note" id="photo-status" role="status">Saved on this device.</p>
+                <input id="photo-input" type="file" accept="image/*" hidden>
+              </div>
+            </div>
+          </section>
+          <label class="variant-field" for="variant-input">Deck and trump order
+            <select id="variant-input" name="variant"><option value="standard">Standard · Ace high</option><option value="jjda">JJDA · Big Joker, Little Joker, 2♠, A♠</option></select>
+          </label>
+          <p class="variant-note">JJDA replaces 2♣ and 2♦ with the two jokers to keep a 52-card deal.</p>
+          <div class="dialog-actions"><button class="text-button" id="cancel-settings" type="button">Cancel</button><button class="primary-button" type="submit">Save and deal</button></div>
+        </form>
+      </dialog>
+      <dialog class="settings-dialog online-dialog" id="online-dialog" aria-labelledby="online-title">
+        <div class="online-content">
+          <div class="dialog-heading"><span class="eyebrow">PRIVATE TABLE</span><button class="dialog-close" id="close-online" type="button" aria-label="Close online table">×</button></div>
+          <h1 id="online-title">Bring your table online.</h1>
+          <p class="dialog-copy">Create a room and share its code, or join a friend's table. Four players use the same rules and deal.</p>
+          <button class="primary-button create-room-button" id="create-room" type="button">Create a room</button>
+          <div class="join-room-row"><label class="name-field" for="room-code-input">Room code<input id="room-code-input" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="6 characters"></label><button class="primary-button" id="join-room" type="button">Join room</button></div>
+          <p class="room-feedback" id="room-feedback" role="status" aria-live="polite">Your name and deck rule come from table settings.</p>
+          <div class="room-share" id="room-share" hidden><span class="eyebrow">SHARE THIS CODE</span><div class="room-code-line"><strong id="room-code-display"></strong><button class="text-button" id="copy-room-link" type="button">Copy invite link</button></div></div>
+          <button class="text-button leave-room-button" id="leave-room" type="button" hidden>Leave online table</button>
+        </div>
+      </dialog>
+      <section class="app-view" id="match-view" data-app-view aria-label="Live match">
+        <section class="match-metrics" aria-label="Live match statistics">
+          <article class="metric-tile metric-score"><span class="eyebrow">PARTNERSHIP SCORE</span><strong id="metric-team-score">0 — 0</strong><div class="metric-progress"><span id="metric-score-progress"></span></div><small><span id="metric-score-target">0 / 500</span> to win</small></article>
+          <article class="metric-tile"><span class="eyebrow">YOUR TRICKS</span><strong id="metric-player-tricks">0</strong><small>this hand</small></article>
+          <article class="metric-tile"><span class="eyebrow">TEAM CONTRACT</span><strong id="metric-contract">Pending</strong><small id="metric-contract-detail">Bids not placed</small></article>
+          <article class="metric-tile"><span class="eyebrow">TRICKS PLAYED</span><strong id="metric-tricks-played">0 <i>/ 13</i></strong><small id="metric-match-phase">Hand 01 · Bidding</small></article>
+        </section>
+        <section class="game-layout" aria-label="Spades game">
+        <aside class="score-rail" aria-label="Scoreboard">
+          <div class="score-heading"><span class="eyebrow">MATCH SCORE</span><span class="target-score">FIRST TO 500</span></div>
+          <div class="team-score team-you"><div class="team-identity"><span class="team-mark">Y</span><span id="team-names-0">YOU + JONAH</span></div><strong id="score-team-0">0</strong><span class="bag-count"><span id="bags-team-0">0</span> bags</span></div>
+          <div class="team-score team-them"><div class="team-identity"><span class="team-mark">M</span><span id="team-names-1">MARA + NIA</span></div><strong id="score-team-1">0</strong><span class="bag-count"><span id="bags-team-1">0</span> bags</span></div>
+          <div class="score-note" id="score-note">Your partnership is seated North–South.</div>
+        </aside>
+        <section class="table-area" aria-label="Game table">
+          <div class="table-surface">
+            <div class="table-grain" aria-hidden="true"></div>
+            <div class="seat seat-north" id="seat-2"></div><div class="seat seat-west" id="seat-1"></div><div class="seat seat-east" id="seat-3"></div>
+            <div class="seat seat-south" id="seat-0"></div>
+            <div class="table-center"><div class="trick-status" id="game-status" aria-live="polite">Your hand is ready.</div><div class="trick-cards" id="trick-cards" aria-label="Cards played this trick"></div><div class="trick-caption" id="trick-caption">13 TRICKS TO PLAY</div></div>
+            <div class="table-footer"><span>♠</span> THE LONG GAME <span>♠</span></div>
+          </div>
+          <section class="player-area" aria-label="Your hand and controls">
+            <div class="player-heading"><div><span class="eyebrow">YOUR HAND</span><span class="hand-count" id="hand-count">13 cards</span></div><div class="trump-state" id="trump-state"><span class="trump-icon">♠</span> Spades unbroken</div></div>
+            <div class="hand" id="player-hand" aria-label="Your cards"></div>
+            <div class="bottom-controls"><p class="action-hint" id="action-hint">Choose your bid to begin.</p><form class="bid-control" id="bid-form"><label for="bid-input">Your bid</label><input id="bid-input" type="number" min="0" max="13" value="4" aria-label="Your bid, zero is nil"><button class="primary-button" id="bid-button" type="submit">Place bid</button></form><button class="primary-button next-button" id="next-hand-button" type="button" hidden>Deal next hand <span aria-hidden="true">→</span></button><button class="primary-button next-button" id="new-match-button" type="button" hidden>New match <span aria-hidden="true">↻</span></button></div>
+            <section class="round-tracker" aria-label="Hand progress">
+              <div class="tracker-heading"><span class="eyebrow">HAND PROGRESS</span><span id="tracker-count">0 / 13 tricks</span></div>
+              <div class="trick-track" id="trick-track" aria-hidden="true"></div>
+              <div class="tracker-footer"><span id="tracker-leader">First trick up for grabs</span><span id="tracker-contract">Partnership contract pending</span></div>
+            </section>
+          </section>
+        </section>
+        </section>
+      </section>
+      <section class="app-view secondary-view" id="lobby-view" data-app-view aria-label="Game lobby" hidden>
+        <header class="view-heading"><div><span class="eyebrow">FIND YOUR TABLE</span><h1>Game lobby</h1><p>Start a practice hand or bring your friends to a private table.</p></div><span class="lobby-status"><span class="live-dot"></span><span id="lobby-status-text">Practice table ready</span></span></header>
+        <div class="lobby-grid">
+          <article class="lobby-card private-lobby-card"><div class="lobby-card-top"><span class="lobby-icon lobby-icon-online" aria-hidden="true">◎</span><span class="eyebrow">PRIVATE ROOM</span></div><h2>Play with your people.</h2><p>Create a room code to share, or join a friend’s table. Your current names and JJDA deck setting carry over.</p><div class="lobby-actions"><button class="primary-button" type="button" data-open-room>Create a room</button><button class="secondary-button" type="button" data-open-room data-room-action="join">Join with code</button></div><div class="lobby-room-status" id="lobby-room-status">No private room connected</div></article>
+          <article class="lobby-card practice-lobby-card"><div class="lobby-card-top"><span class="lobby-icon" aria-hidden="true">♠</span><span class="eyebrow">PRACTICE TABLE</span></div><h2>Play a hand now.</h2><p>Deal a fresh hand against three computer players. Your scores and JJDA rules stay on this device.</p><button class="primary-button" id="practice-table-button" type="button">Open practice table <span aria-hidden="true">→</span></button><div class="practice-roster" id="practice-roster"></div></article>
+        </div>
+        <section class="lobby-bottom"><div><span class="eyebrow">TABLE SETTINGS</span><h2>Make the table yours</h2><p>Player names, your photo, and deck rules can be changed any time between rooms.</p></div><button class="secondary-button" id="lobby-settings-button" type="button">Edit names and rules</button></section>
+      </section>
+      <section class="app-view secondary-view" id="leaderboard-view" data-app-view aria-label="Leaderboard" hidden>
+        <header class="view-heading"><div><span class="eyebrow">LIVE TABLE STATS</span><h1>Leaderboard</h1><p>Tricks taken in this hand, updated after every completed trick.</p></div><span class="leaderboard-tag"><span class="live-dot"></span> THIS HAND</span></header>
+        <section class="leaderboard-summary" aria-label="Leaderboard summary">
+          <article class="leader-stat"><span class="eyebrow">LEADING PLAYER</span><strong id="leader-top-player">—</strong><small id="leader-top-player-detail">No tricks won yet</small></article>
+          <article class="leader-stat"><span class="eyebrow">TEAM IN FRONT</span><strong id="leader-top-team">—</strong><small id="leader-top-team-detail">Score after this hand</small></article>
+          <article class="leader-stat"><span class="eyebrow">MATCH TARGET</span><strong>500</strong><small>points to win</small></article>
+        </section>
+        <section class="leaderboard-panel" aria-label="Current hand rankings">
+          <div class="leaderboard-panel-heading"><div><span class="eyebrow">CURRENT HAND</span><h2>Trick standings</h2></div><span class="leader-count" id="leader-count">4 players</span></div>
+          <div class="leader-table-wrap"><table class="leader-table"><thead><tr><th scope="col">#</th><th scope="col">Player</th><th scope="col">Team</th><th scope="col">Bid</th><th scope="col">Tricks</th><th scope="col">Seat</th></tr></thead><tbody id="leaderboard-rows"></tbody></table></div>
+          <p class="leaderboard-footnote">Standings are for this game table only; there isn’t a global rankings service yet.</p>
+        </section>
+      </section>
+      <footer class="page-footer"><span>PARTNERSHIP SPADES</span><span>FOUR PLAYERS · ONE DECK · 500 POINTS</span></footer>
+    </main>
+  </body>
+</html>
