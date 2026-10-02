@@ -19,7 +19,7 @@
     "appId": "com.dross7278.spades",
     "productName": "Spades",
     "directories": {
-      "output": "release"
+      "output": "release-target"
     },
     "files": [
       "app.js",

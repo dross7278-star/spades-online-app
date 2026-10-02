@@ -1,3 +1,6 @@
+.seat-roles { display:flex; flex-wrap:wrap; gap:4px; margin-top:2px; }
+.seat-role { padding:2px 4px; border:1px solid rgba(83,231,192,.22); border-radius:4px; color:#79f3c9; background:rgba(57,225,175,.07); font:400 6px 'Space Mono',monospace; letter-spacing:.2px; }
+.seat-role.is-leader { color:#b8a0ff; border-color:rgba(167,125,255,.25); background:rgba(152,106,255,.09); }
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&family=Space+Mono:wght@400;700&display=swap');
 :root { color-scheme:dark; --ink:#f3f1e8; --muted:#a8b7aa; --felt:#174635; --line:rgba(230,238,221,.14); --gold:#d7b568; --coral:#e58f79; --blue:#83a9bd; --card:#f5f2e8; --card-ink:#18231d; --red:#b4403c; font-family:'DM Sans','Trebuchet MS',sans-serif; background:#10271f; color:var(--ink); font-synthesis:none; text-rendering:optimizeLegibility; }
 * { box-sizing:border-box; } body { min-width:320px; min-height:100vh; margin:0; background:#10271f repeating-linear-gradient(135deg,rgba(255,255,255,.018) 0 1px,transparent 1px 5px); } button,input { font:inherit; } button { color:inherit; }

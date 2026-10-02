@@ -11,6 +11,7 @@
       return {
         names: saved.names.map((name, index) => String(name).trim().slice(0, 20) || defaultNames[index]),
         variant: saved.variant === 'jjda' ? 'jjda' : 'standard',
+        winningScore: [200, 300, 500].includes(Number(saved.winningScore)) ? Number(saved.winningScore) : 500,
         photo: typeof saved.photo === 'string' && /^data:image\/jpeg;base64,/.test(saved.photo) ? saved.photo : '',
       };
     } catch {
@@ -20,9 +21,10 @@
   const initialSettings = loadSettings();
   let names = initialSettings?.names || [...defaultNames];
   let variant = initialSettings?.variant || 'jjda';
+  let winningScore = initialSettings?.winningScore || 500;
   let profilePhoto = initialSettings?.photo || '';
-  const game = new SpadesGame(names, 500, variant);
-  const suitOrder = { '♠': 0, '♥': 1, '♦': 2, '♣': 3 };
+  const game = new SpadesGame(names, winningScore, variant);
+  const suitOrder = { '♥': 0, '♣': 1, '♦': 2, '♠': 3 };
   const seatIds = { 1: 'seat-1', 2: 'seat-2', 3: 'seat-3' };
   let phase = 'bidding';
   let lastTrick = null;
@@ -53,7 +55,7 @@
     onlineSocket = socket;
     socket.addEventListener('open', () => {
       const token = action === 'join' ? localStorage.getItem(`spades-room-${roomCode}`) : null;
-      socket.send(JSON.stringify({ type: 'join', action, roomCode, name: names[0], variant, token }));
+      socket.send(JSON.stringify({ type: 'join', action, roomCode, name: names[0], variant, winningScore, token }));
     });
     socket.addEventListener('message', event => {
       const message = JSON.parse(event.data);
@@ -61,6 +63,7 @@
         onlineRoomCode = message.roomCode;
         onlineSeatIndex = message.seatIndex;
         variant = message.variant;
+        winningScore = message.winningScore;
         byId('room-code-input').value = onlineRoomCode;
         byId('room-code-display').textContent = onlineRoomCode;
         byId('room-share').hidden = false;
@@ -112,7 +115,7 @@
     game.startRound();
     phase = 'bidding';
     lastTrick = null;
-    byId('game-status').textContent = 'Your bid opens the hand.';
+    byId('game-status').textContent = `Opening lead: ${names[game.leadPlayerIndex]}. Place your bid.`;
     byId('score-note').textContent = 'Your partnership is seated North–South.';
     render();
   }
@@ -207,14 +210,15 @@
     byId('trump-state').innerHTML = `<span class="trump-icon">♠</span> ${variant === 'jjda' ? 'JJDA · ' : ''}Spades ${game.spadesBroken ? 'broken' : 'unbroken'}`;
     const completedTricks = game.players.reduce((total, player) => total + player.tricksWon, 0);
     byId('trick-caption').textContent = `${completedTricks} OF 13 TRICKS PLAYED`;
-    renderLivePanels(game.players, game.teamScores, game.teamBags, game.roundNumber, phase);
-    renderMySeat(game.players[0], phase === 'play' && game.currentPlayerIndex === 0);
+    renderLivePanels(game.players, game.teamScores, game.teamBags, game.roundNumber, phase, game.winningScore);
+    renderMySeat(game.players[0], phase === 'play' && game.currentPlayerIndex === 0, game.dealerIndex, game.leadPlayerIndex);
     renderSeats(); renderTrick(); renderHand(); renderControls();
   }
   function renderOnline() {
     const state = onlineState;
     names = state.players.map(player => player.name);
     variant = state.variant;
+    winningScore = state.winningScore;
     byId('round-label').textContent = `HAND ${String(state.roundNumber).padStart(2, '0')}`;
     byId('score-team-0').textContent = state.teamScores[0];
     byId('score-team-1').textContent = state.teamScores[1];
@@ -226,14 +230,15 @@
     byId('trump-state').innerHTML = `<span class="trump-icon">♠</span> ${variant === 'jjda' ? 'JJDA · ' : ''}Spades ${state.spadesBroken ? 'broken' : 'unbroken'}`;
     byId('trick-caption').textContent = `${state.players.reduce((total, player) => total + player.tricksWon, 0)} OF 13 TRICKS PLAYED`;
     byId('game-status').textContent = state.message;
-    renderLivePanels(state.players, state.teamScores, state.teamBags, state.roundNumber, state.phase);
-    renderMySeat(state.players[onlineSeatIndex], state.phase === 'play' && state.currentPlayerIndex === onlineSeatIndex);
+    renderLivePanels(state.players, state.teamScores, state.teamBags, state.roundNumber, state.phase, state.winningScore);
+    renderMySeat(state.players[onlineSeatIndex], state.phase === 'play' && state.currentPlayerIndex === onlineSeatIndex, state.dealerIndex, state.leadPlayerIndex);
     state.players.forEach((player, index) => {
       if (index === onlineSeatIndex) return;
       const active = state.phase === 'play' && state.currentPlayerIndex === index;
       const bid = player.bid === null ? 'Waiting to bid' : `Bid ${player.bid === 0 ? 'Nil' : player.bid}`;
       const color = index === 1 ? 'avatar-coral' : index === 2 ? 'avatar-gold' : 'avatar-blue';
-      byId(seatIds[index]).innerHTML = `<span class="seat-avatar ${color}">${escapeHtml(player.name[0])}</span><span class="seat-copy"><strong>${escapeHtml(player.name)}</strong><small>${player.connected ? bid : 'Disconnected'} · ${player.tricksWon} tricks</small></span><span class="turn-indicator ${active ? 'is-active' : ''}"></span>`;
+      const roles = seatRoleBadges(index, state.dealerIndex, state.leadPlayerIndex);
+      byId(seatIds[index]).innerHTML = `<span class="seat-avatar ${color}">${escapeHtml(player.name[0])}</span><span class="seat-copy"><strong>${escapeHtml(player.name)}</strong><small>${player.connected ? bid : 'Disconnected'} · ${player.tricksWon} tricks</small>${roles}</span><span class="turn-indicator ${active ? 'is-active' : ''}"></span>`;
     });
     const positions = { 0: 'played-south', 1: 'played-west', 2: 'played-north', 3: 'played-east' };
     byId('trick-cards').innerHTML = state.currentTrick.map(play => `<div class="played-card ${positions[play.playerIndex]} ${isRed(play.card.suit) ? 'red-suit' : ''}"><span>${escapeHtml(play.card.rank)}</span><span>${escapeHtml(play.card.suit)}</span></div>`).join('');
@@ -253,7 +258,7 @@
         : state.phase === 'play' ? (myTurn ? 'Your turn. Follow suit when you can.' : `${names[state.currentPlayerIndex]} is playing.`)
           : state.phase === 'round-over' ? 'The hand is scored. Deal the next hand when ready.' : 'The match is decided.';
   }
-  function renderLivePanels(players, scores, bags, roundNumber, currentPhase) {
+  function renderLivePanels(players, scores, bags, roundNumber, currentPhase, targetScore) {
     const ownIndex = mode === 'online' ? onlineSeatIndex : 0;
     const ownTeam = ownIndex % 2;
     const partner = players[(ownIndex + 2) % 4];
@@ -273,9 +278,12 @@
     const leaderTeam = scores[0] === scores[1] ? null : scores[0] > scores[1] ? 0 : 1;
     const teamNames = [`${names[0]} + ${names[2]}`, `${names[1]} + ${names[3]}`];
 
+    byId('match-target-label').textContent = `FIRST TO ${targetScore}`;
+    byId('leader-target').textContent = targetScore;
+    byId('footer-target').textContent = `FOUR PLAYERS · ONE DECK · ${targetScore} POINTS`;
     byId('metric-team-score').textContent = `${scores[0]} — ${scores[1]}`;
-    byId('metric-score-target').textContent = `${scores[ownTeam]} / 500`;
-    byId('metric-score-progress').style.width = `${Math.min(100, Math.max(0, scores[ownTeam] / 500 * 100))}%`;
+    byId('metric-score-target').textContent = `${scores[ownTeam]} / ${targetScore}`;
+    byId('metric-score-progress').style.width = `${Math.min(100, Math.max(0, scores[ownTeam] / targetScore * 100))}%`;
     byId('metric-player-tricks').textContent = player?.tricksWon ?? 0;
     byId('metric-contract').textContent = contractLabel;
     byId('metric-contract-detail').textContent = bidsPlaced
@@ -305,7 +313,7 @@
       ? 'No tricks won yet'
       : `${leadingPlayer.tricksWon} ${leadingPlayer.tricksWon === 1 ? 'trick' : 'tricks'} this hand`;
     byId('leader-top-team').textContent = leaderTeam === null ? 'Tied game' : teamNames[leaderTeam];
-    byId('leader-top-team-detail').textContent = `${scores[0]} — ${scores[1]} · first to 500`;
+    byId('leader-top-team-detail').textContent = `${scores[0]} — ${scores[1]} · first to ${targetScore}`;
     byId('leader-count').textContent = mode === 'online' ? `${onlineCount}/4 connected` : '4 players';
     const rows = players.map((entry, index) => ({ ...entry, index }))
       .sort((first, second) => second.tricksWon - first.tricksWon || first.index - second.index);
@@ -337,10 +345,11 @@
       const active = phase === 'play' && game.currentPlayerIndex === index;
       const bid = player.bid === null ? 'Waiting to bid' : `Bid ${player.bid === 0 ? 'Nil' : player.bid}`;
       const color = index === 1 ? 'avatar-coral' : index === 2 ? 'avatar-gold' : 'avatar-blue';
-      byId(seatIds[index]).innerHTML = `<span class="seat-avatar ${color}">${escapeHtml(player.name[0])}</span><span class="seat-copy"><strong>${escapeHtml(player.name)}</strong><small>${bid} · ${player.tricksWon} tricks</small></span><span class="turn-indicator ${active ? 'is-active' : ''}"></span>`;
+      const roles = seatRoleBadges(index, game.dealerIndex, game.leadPlayerIndex);
+      byId(seatIds[index]).innerHTML = `<span class="seat-avatar ${color}">${escapeHtml(player.name[0])}</span><span class="seat-copy"><strong>${escapeHtml(player.name)}</strong><small>${bid} · ${player.tricksWon} tricks</small>${roles}</span><span class="turn-indicator ${active ? 'is-active' : ''}"></span>`;
     }
   }
-  function renderMySeat(player, active) {
+  function renderMySeat(player, active, dealerIndex = null, leadPlayerIndex = null) {
     if (!player) return;
     const initial = escapeHtml(player.name.trim().charAt(0).toUpperCase() || '?');
     const avatar = profilePhoto
@@ -348,7 +357,14 @@
       : `<span class="avatar-initial">${initial}</span>`;
     const bid = player.bid === null ? 'Waiting to bid' : `Bid ${player.bid === 0 ? 'Nil' : player.bid}`;
     const trickLabel = player.tricksWon === 1 ? '1 trick won' : `${player.tricksWon} tricks won`;
-    byId('seat-0').innerHTML = `<button class="seat-photo-button ${profilePhoto ? 'has-photo' : ''}" id="seat-photo-button" type="button" aria-label="${profilePhoto ? 'Change' : 'Add'} ${escapeHtml(player.name)}'s photo">${avatar}</button><span class="seat-copy"><strong>${escapeHtml(player.name)}</strong><small>${bid} · ${trickLabel}</small></span><span class="turn-indicator ${active ? 'is-active' : ''}"></span>`;
+    const roles = seatRoleBadges(mode === 'online' ? onlineSeatIndex : 0, dealerIndex, leadPlayerIndex);
+    byId('seat-0').innerHTML = `<button class="seat-photo-button ${profilePhoto ? 'has-photo' : ''}" id="seat-photo-button" type="button" aria-label="${profilePhoto ? 'Change' : 'Add'} ${escapeHtml(player.name)}'s photo">${avatar}</button><span class="seat-copy"><strong>${escapeHtml(player.name)}</strong><small>${bid} · ${trickLabel}</small>${roles}</span><span class="turn-indicator ${active ? 'is-active' : ''}"></span>`;
+  }
+  function seatRoleBadges(seatIndex, dealerIndex, leadPlayerIndex) {
+    const badges = [];
+    if (seatIndex === dealerIndex) badges.push('<span class="seat-role is-dealer">DEALER</span>');
+    if (seatIndex === leadPlayerIndex) badges.push('<span class="seat-role is-leader">LEADS</span>');
+    return badges.length ? `<span class="seat-roles">${badges.join('')}</span>` : '';
   }
   function renderTrick() {
     const plays = game.currentTrick.length ? game.currentTrick : (lastTrick || []);
@@ -396,6 +412,7 @@
       input.value = names[Number(input.dataset.playerIndex)];
     });
     byId('variant-input').value = variant;
+    byId('target-score-input').value = String(winningScore);
     renderPhotoPreview();
     settingsDialog.showModal();
   }
@@ -444,16 +461,24 @@
       return;
     }
     inputs.forEach(input => input.setCustomValidity(''));
+    const selectedWinningScore = Number(byId('target-score-input').value);
+    if (![200, 300, 500].includes(selectedWinningScore)) {
+      byId('target-score-input').setCustomValidity('Choose a 200, 300, or 500 point target.');
+      byId('target-score-input').reportValidity();
+      return;
+    }
     names = updatedNames;
     names.forEach((name, index) => { game.players[index].name = name; });
     variant = byId('variant-input').value;
     game.variant = variant;
+    winningScore = selectedWinningScore;
+    game.winningScore = winningScore;
     game.teamScores = [0, 0];
     game.teamBags = [0, 0];
     game.dealerIndex = 2;
     game.roundNumber = 0;
     try {
-      localStorage.setItem(settingsStorageKey, JSON.stringify({ names, variant, photo: profilePhoto }));
+      localStorage.setItem(settingsStorageKey, JSON.stringify({ names, variant, winningScore, photo: profilePhoto }));
     } catch {
       byId('score-note').textContent = 'Names are set for this match; browser storage is unavailable.';
     }

@@ -30,7 +30,7 @@
         <form id="settings-form">
           <div class="dialog-heading"><span class="eyebrow">TABLE SETUP</span><button class="dialog-close" id="close-settings" type="button" aria-label="Close settings">×</button></div>
           <h1 id="settings-title">Your table, your rules.</h1>
-          <p class="dialog-copy">Set the four seats and choose the deck for your next match.</p>
+          <p class="dialog-copy">Set the seats, deck, and score target for your next match.</p>
           <div class="name-fields">
             <label class="name-field">South · You<input name="player-name" data-player-index="0" maxlength="20" required autocomplete="nickname"></label>
             <label class="name-field">West<input name="player-name" data-player-index="1" maxlength="20" required></label>
@@ -54,6 +54,9 @@
           </section>
           <label class="variant-field" for="variant-input">Deck and trump order
             <select id="variant-input" name="variant"><option value="standard">Standard · Ace high</option><option value="jjda">JJDA · Big Joker, Little Joker, 2♠, A♠</option></select>
+          </label>
+          <label class="variant-field" for="target-score-input">Match target
+            <select id="target-score-input" name="target-score"><option value="200">200 points · quick match</option><option value="300">300 points · standard</option><option value="500">500 points · long match</option></select>
           </label>
           <p class="variant-note">JJDA replaces 2♣ and 2♦ with the two jokers to keep a 52-card deal.</p>
           <div class="dialog-actions"><button class="text-button" id="cancel-settings" type="button">Cancel</button><button class="primary-button" type="submit">Save and deal</button></div>
@@ -80,7 +83,7 @@
         </section>
         <section class="game-layout" aria-label="Spades game">
         <aside class="score-rail" aria-label="Scoreboard">
-          <div class="score-heading"><span class="eyebrow">MATCH SCORE</span><span class="target-score">FIRST TO 500</span></div>
+          <div class="score-heading"><span class="eyebrow">MATCH SCORE</span><span class="target-score" id="match-target-label">FIRST TO 500</span></div>
           <div class="team-score team-you"><div class="team-identity"><span class="team-mark">Y</span><span id="team-names-0">YOU + JONAH</span></div><strong id="score-team-0">0</strong><span class="bag-count"><span id="bags-team-0">0</span> bags</span></div>
           <div class="team-score team-them"><div class="team-identity"><span class="team-mark">M</span><span id="team-names-1">MARA + NIA</span></div><strong id="score-team-1">0</strong><span class="bag-count"><span id="bags-team-1">0</span> bags</span></div>
           <div class="score-note" id="score-note">Your partnership is seated North–South.</div>
@@ -119,7 +122,7 @@
         <section class="leaderboard-summary" aria-label="Leaderboard summary">
           <article class="leader-stat"><span class="eyebrow">LEADING PLAYER</span><strong id="leader-top-player">—</strong><small id="leader-top-player-detail">No tricks won yet</small></article>
           <article class="leader-stat"><span class="eyebrow">TEAM IN FRONT</span><strong id="leader-top-team">—</strong><small id="leader-top-team-detail">Score after this hand</small></article>
-          <article class="leader-stat"><span class="eyebrow">MATCH TARGET</span><strong>500</strong><small>points to win</small></article>
+          <article class="leader-stat"><span class="eyebrow">MATCH TARGET</span><strong id="leader-target">500</strong><small>points to win</small></article>
         </section>
         <section class="leaderboard-panel" aria-label="Current hand rankings">
           <div class="leaderboard-panel-heading"><div><span class="eyebrow">CURRENT HAND</span><h2>Trick standings</h2></div><span class="leader-count" id="leader-count">4 players</span></div>
@@ -127,7 +130,7 @@
           <p class="leaderboard-footnote">Standings are for this game table only; there isn’t a global rankings service yet.</p>
         </section>
       </section>
-      <footer class="page-footer"><span>PARTNERSHIP SPADES</span><span>FOUR PLAYERS · ONE DECK · 500 POINTS</span></footer>
+      <footer class="page-footer"><span>PARTNERSHIP SPADES</span><span id="footer-target">FOUR PLAYERS · ONE DECK · 500 POINTS</span></footer>
     </main>
   </body>
 </html>

@@ -21,4 +21,4 @@ npm install
 npm run build:win
 ```
 
-The installer and portable `.exe` are written to `release/`.
+The installer and portable `.exe` are written to `release-target/`.

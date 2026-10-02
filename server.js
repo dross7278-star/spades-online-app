@@ -78,12 +78,12 @@ function assignSocket(socket, room, seatIndex, name, token) {
   room.seats[seatIndex] = { name, token, socket };
   assignedSeats.set(socket, { room, seatIndex });
   if (!room.game && room.seats.every(Boolean)) {
-    room.game = new SpadesGame(room.seats.map(player => player.name), 500, room.variant);
+    room.game = new SpadesGame(room.seats.map(player => player.name), room.winningScore, room.variant);
     room.game.startRound();
     room.phase = 'bidding';
     room.message = 'Four players are seated. Place your bids.';
   }
-  send(socket, { type: 'joined', roomCode: room.code, seatIndex, token, variant: room.variant });
+  send(socket, { type: 'joined', roomCode: room.code, seatIndex, token, variant: room.variant, winningScore: room.winningScore });
   broadcastRoom(room);
 }
 
@@ -92,7 +92,9 @@ function joinRoom(socket, message) {
   let room;
   if (action === 'create') {
     const variant = message.variant === 'jjda' ? 'jjda' : 'standard';
-    room = { code: newRoomCode(), variant, seats: [null, null, null, null], phase: 'lobby', game: null, message: 'Waiting for three more players.' };
+    const requestedTarget = Number(message.winningScore);
+    const winningScore = [200, 300, 500].includes(requestedTarget) ? requestedTarget : 500;
+    room = { code: newRoomCode(), variant, winningScore, seats: [null, null, null, null], phase: 'lobby', game: null, message: 'Waiting for three more players.' };
     rooms.set(room.code, room);
   } else if (action === 'join') {
     const code = typeof message.roomCode === 'string' ? message.roomCode.trim().toUpperCase() : '';
@@ -122,6 +124,7 @@ function stateFor(room, seatIndex) {
     type: 'state',
     roomCode: room.code,
     variant: room.variant,
+    winningScore: room.winningScore,
     phase: room.phase,
     message: room.message,
     seatIndex,
@@ -133,6 +136,8 @@ function stateFor(room, seatIndex) {
     })),
     hand: ownHand,
     legalIndices,
+    dealerIndex: game?.dealerIndex ?? null,
+    leadPlayerIndex: game?.leadPlayerIndex ?? null,
     currentPlayerIndex: game?.currentPlayerIndex ?? null,
     currentTrick: game?.currentTrick || [],
     teamScores: game?.teamScores || [0, 0],

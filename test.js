@@ -10,6 +10,25 @@ const dealtHands = dealHands();
 assert(dealtHands.every(hand => hand.length === 13));
 assert.equal(new Set(dealtHands.flat().map(cardKey)).size, 52);
 
+for (const target of [200, 300, 500]) {
+	const targetGame = new SpadesGame(['Alice', 'Bob', 'Carol', 'Dave'], target);
+	assert.equal(targetGame.winningScore, target);
+	targetGame.teamScores[0] = target;
+	assert.equal(targetGame.isGameOver(), true);
+}
+assert.throws(() => new SpadesGame(['Alice', 'Bob', 'Carol', 'Dave'], 250), /Winning score/);
+
+const rotationGame = new SpadesGame(['Alice', 'Bob', 'Carol', 'Dave']);
+const dealerRotation = [];
+const leaderRotation = [];
+for (let hand = 0; hand < 5; hand++) {
+	rotationGame.startRound();
+	dealerRotation.push(rotationGame.dealerIndex);
+	leaderRotation.push(rotationGame.leadPlayerIndex);
+}
+assert.deepEqual(dealerRotation, [3, 0, 1, 2, 3]);
+assert.deepEqual(leaderRotation, [0, 1, 2, 3, 0]);
+
 const originalMathRandom = Math.random;
 Math.random = () => { throw new Error('Shuffle must not use Math.random'); };
 try {

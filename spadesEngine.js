@@ -49,6 +49,7 @@
   class SpadesGame {
     constructor(playerNames, winningScore = 500, variant = 'standard') {
       if (!Array.isArray(playerNames) || playerNames.length !== 4) throw new Error('Spades requires exactly 4 players');
+      if (![200, 300, 500].includes(winningScore)) throw new Error('Winning score must be 200, 300, or 500');
       if (variant !== 'standard' && variant !== 'jjda') throw new Error('Unknown Spades rules variant');
       this.players = playerNames.map(name => ({ name, hand: [], tricksWon: 0, bid: null, nilBid: false }));
       this.winningScore = winningScore;
