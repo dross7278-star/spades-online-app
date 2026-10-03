@@ -3,7 +3,127 @@
   const { SpadesGame } = window.SpadesEngine;
   const defaultNames = ['You', 'Mara', 'Jonah', 'Nia'];
   const settingsStorageKey = 'spades-table-settings';
+  const firebaseSessionKey = 'spades-firebase-session';
   const byId = id => document.getElementById(id);
+  let firebaseConfig = { apiKey: '', accountsEnabled: false };
+  let firebaseSession = null;
+  let accountPoints = null;
+  let accountMode = 'sign-in';
+  let lastRewardId = '';
+  let lastCelebrationKey = '';
+  let celebrationNextAction = 'next-hand';
+  function saveFirebaseSession(session) {
+    firebaseSession = session;
+    try { localStorage.setItem(firebaseSessionKey, JSON.stringify(session)); } catch {}
+  }
+  function clearFirebaseSession() {
+    firebaseSession = null;
+    accountPoints = null;
+    try { localStorage.removeItem(firebaseSessionKey); } catch {}
+    updateRewardsUI();
+  }
+  function updateRewardsUI() {
+    const enabled = firebaseConfig.accountsEnabled;
+    const signedIn = Boolean(firebaseSession?.refreshToken);
+    byId('account-status').textContent = !enabled
+      ? 'Online account rewards are not configured on this server.'
+      : signedIn ? `Signed in as ${firebaseSession.email}` : 'Sign in to sync your wallet across devices.';
+    byId('account-points').textContent = accountPoints === null ? (enabled ? '—' : 'Offline') : `${accountPoints.toLocaleString()} pts`;
+    byId('wallet-points').textContent = accountPoints === null ? (enabled ? 'Sign in' : 'Unavailable') : `${accountPoints.toLocaleString()} pts`;
+    byId('wallet-summary').textContent = signedIn ? `Signed in as ${firebaseSession.email}` : enabled ? 'Sign in to earn and spend points.' : 'Firebase account setup is required for online points.';
+    byId('account-submit').disabled = !enabled || signedIn;
+    byId('account-signout').hidden = !signedIn;
+    byId('account-mode-toggle').hidden = !enabled || signedIn;
+    byId('enter-quick-cup').disabled = !enabled || !signedIn || accountPoints < 100 || mode === 'online';
+    byId('tournament-status').textContent = !enabled
+      ? 'Online rewards are not configured on this server.'
+      : !signedIn ? 'Sign in to enter tournaments.'
+        : accountPoints < 100 ? 'Earn 100 points to enter.'
+          : mode === 'online' ? 'Leave your current room before entering.' : '100 points · four-player room';
+  }
+  async function getFirebaseIdToken() {
+    if (!firebaseSession?.refreshToken || !firebaseConfig.apiKey) return '';
+    if (firebaseSession.idToken && firebaseSession.expiresAt > Date.now() + 30000) return firebaseSession.idToken;
+    const response = await fetch(`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(firebaseConfig.apiKey)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: firebaseSession.refreshToken }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error('Your account session expired. Sign in again.');
+    saveFirebaseSession({ ...firebaseSession, idToken: result.id_token, refreshToken: result.refresh_token, expiresAt: Date.now() + Number(result.expires_in) * 1000 });
+    return firebaseSession.idToken;
+  }
+  async function syncAccountWallet() {
+    const idToken = await getFirebaseIdToken();
+    if (!idToken) return;
+    const response = await fetch('/api/account', { headers: { Authorization: `Bearer ${idToken}` }, cache: 'no-store' });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Could not load your point wallet.');
+    accountPoints = Number(result.points) || 0;
+    firebaseSession.email = result.email || firebaseSession.email;
+    updateRewardsUI();
+  }
+  async function initializeAccountService() {
+    try {
+      const configResponse = await fetch('/api/firebase-config', { cache: 'no-store' });
+      Object.assign(firebaseConfig, await configResponse.json());
+    } catch {
+      firebaseConfig.accountsEnabled = false;
+    }
+    try { firebaseSession = JSON.parse(localStorage.getItem(firebaseSessionKey)); } catch { firebaseSession = null; }
+    updateRewardsUI();
+    if (firebaseSession?.refreshToken && firebaseConfig.accountsEnabled) {
+      try { await syncAccountWallet(); } catch { clearFirebaseSession(); }
+    }
+  }
+  function setAccountMode(modeName) {
+    accountMode = modeName;
+    const creating = accountMode === 'create';
+    byId('account-title').textContent = creating ? 'Create your player account.' : 'Your points, wherever you play.';
+    byId('account-submit').textContent = creating ? 'Create account' : 'Sign in';
+    byId('account-mode-toggle').textContent = creating ? 'Back to sign in' : 'Create an account';
+    byId('account-password').autocomplete = creating ? 'new-password' : 'current-password';
+  }
+  async function submitAccountForm(event) {
+    event.preventDefault();
+    if (!firebaseConfig.apiKey || !firebaseConfig.accountsEnabled) {
+      byId('account-feedback').textContent = 'Ask the app administrator to finish Firebase setup.';
+      return;
+    }
+    const email = byId('account-email').value.trim();
+    const password = byId('account-password').value;
+    const method = accountMode === 'create' ? 'signUp' : 'signInWithPassword';
+    byId('account-submit').disabled = true;
+    byId('account-feedback').textContent = accountMode === 'create' ? 'Creating account…' : 'Signing in…';
+    try {
+      const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:${method}?key=${encodeURIComponent(firebaseConfig.apiKey)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, returnSecureToken: true }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || 'Could not sign in.');
+      saveFirebaseSession({ idToken: result.idToken, refreshToken: result.refreshToken, email: result.email || email, expiresAt: Date.now() + Number(result.expiresIn) * 1000 });
+      await syncAccountWallet();
+      byId('account-feedback').textContent = 'Your online points wallet is ready.';
+      setAccountMode('sign-in');
+    } catch (error) {
+      const messages = { EMAIL_EXISTS: 'An account already uses that email.', INVALID_LOGIN_CREDENTIALS: 'Email or password is incorrect.', WEAK_PASSWORD: 'Use a password with at least six characters.' };
+      byId('account-feedback').textContent = messages[error.message] || error.message;
+    } finally {
+      updateRewardsUI();
+    }
+  }
+  async function openAccountDialog() {
+    setAccountMode('sign-in');
+    byId('account-feedback').textContent = '';
+    if (firebaseSession?.refreshToken && accountPoints === null) {
+      try { await syncAccountWallet(); } catch (error) { byId('account-feedback').textContent = error.message; }
+    }
+    updateRewardsUI();
+    byId('account-dialog').showModal();
+  }
   function loadSettings() {
     try {
       const saved = JSON.parse(localStorage.getItem(settingsStorageKey));
@@ -56,9 +176,11 @@
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const socket = new WebSocket(`${protocol}//${location.host}`);
     onlineSocket = socket;
-    socket.addEventListener('open', () => {
+    socket.addEventListener('open', async () => {
       const token = action === 'join' ? localStorage.getItem(`spades-room-${roomCode}`) : null;
-      socket.send(JSON.stringify({ type: 'join', action, roomCode, name: names[0], variant, winningScore, token }));
+      let idToken = '';
+      try { idToken = await getFirebaseIdToken(); } catch (error) { byId('room-feedback').textContent = error.message; }
+      socket.send(JSON.stringify({ type: 'join', action, roomCode, name: names[0], variant, winningScore, token, idToken }));
     });
     socket.addEventListener('message', event => {
       const message = JSON.parse(event.data);
@@ -67,6 +189,8 @@
         onlineSeatIndex = message.seatIndex;
         variant = message.variant;
         winningScore = message.winningScore;
+        if (Number.isFinite(message.pointsBalance)) accountPoints = message.pointsBalance;
+        updateRewardsUI();
         byId('room-code-input').value = onlineRoomCode;
         byId('room-code-display').textContent = onlineRoomCode;
         byId('room-share').hidden = false;
@@ -76,6 +200,12 @@
       } else if (message.type === 'state') {
         onlineState = message;
         mode = 'online';
+        if (Number.isFinite(message.accountPoints)) accountPoints = message.accountPoints;
+        if (message.lastReward?.id && message.lastReward.id !== lastRewardId) {
+          lastRewardId = message.lastReward.id;
+          byId('room-feedback').textContent = `+${message.lastReward.amount} points · ${message.lastReward.label}`;
+        }
+        updateRewardsUI();
         const connected = message.players.filter(player => player.connected).length;
         byId('room-feedback').textContent = message.phase === 'lobby'
           ? `Room ${message.roomCode}: waiting for players (${connected}/4).`
@@ -110,6 +240,7 @@
     onlineRoomCode = '';
     onlineSeatIndex = -1;
     mode = 'local';
+    byId('table-chat').hidden = true;
     render();
   }
 
@@ -217,6 +348,7 @@
       renderOnline();
       return;
     }
+    byId('table-chat').hidden = true;
     byId('round-label').textContent = `HAND ${String(game.roundNumber).padStart(2, '0')}`;
     byId('score-team-0').textContent = game.teamScores[0];
     byId('score-team-1').textContent = game.teamScores[1];
@@ -237,6 +369,10 @@
     names = state.players.map(player => player.name);
     variant = state.variant;
     winningScore = state.winningScore;
+    byId('table-chat').hidden = false;
+    byId('chat-room-label').textContent = `ROOM ${state.roomCode}`;
+    byId('chat-online-count').textContent = `${state.players.filter(player => player.connected).length} / 4 online`;
+    renderRoomChat(state.chat || []);
     hand.hidden = Boolean(state.handHidden);
     byId('blind-nil-notice').hidden = !state.canBlindNil;
     byId('round-label').textContent = `HAND ${String(state.roundNumber).padStart(2, '0')}`;
@@ -282,6 +418,17 @@
         : state.phase === 'play' ? (myTurn ? 'Your turn. Follow suit when you can.' : `${names[state.currentPlayerIndex]} is playing.`)
           : state.phase === 'round-over' ? 'The hand is scored. Deal the next hand when ready.' : 'The match is decided.';
   }
+  function renderRoomChat(messages) {
+    const chatLog = byId('chat-messages');
+    const recentMessages = messages.slice(-30);
+    chatLog.innerHTML = recentMessages.map(message => {
+      const timestamp = new Date(message.sentAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      const ownMessage = message.seatIndex === onlineSeatIndex;
+      return `<li class="chat-message ${ownMessage ? 'is-own-message' : ''}"><div><strong>${escapeHtml(message.name)}</strong><time>${escapeHtml(timestamp)}</time></div><p>${escapeHtml(message.text)}</p></li>`;
+    }).join('');
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
   function renderLivePanels(players, scores, bags, roundNumber, currentPhase, targetScore) {
     const ownIndex = mode === 'online' ? onlineSeatIndex : 0;
     const ownTeam = ownIndex % 2;
@@ -540,6 +687,18 @@
       if (game.currentPlayerIndex !== 0) scheduleComputerTurn();
     } catch (error) { byId('game-status').textContent = error.message; }
   });
+  byId('chat-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const input = byId('chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+    if (mode !== 'online') {
+      byId('game-status').textContent = 'Join a private room to chat with other players.';
+      return;
+    }
+    sendOnlineAction('chat', { text });
+    input.value = '';
+  });
   byId('reveal-hand-button').addEventListener('click', () => {
     if (mode === 'online') {
       sendOnlineAction('reveal-hand');
@@ -588,6 +747,23 @@
   byId('new-match-button').addEventListener('click', resetMatch);
   byId('new-game-button').addEventListener('click', resetMatch);
   byId('settings-button').addEventListener('click', showSettings);
+  byId('open-account').addEventListener('click', openAccountDialog);
+  byId('account-close').addEventListener('click', () => byId('account-dialog').close());
+  byId('firebase-account-form').addEventListener('submit', submitAccountForm);
+  byId('account-mode-toggle').addEventListener('click', () => setAccountMode(accountMode === 'create' ? 'sign-in' : 'create'));
+  byId('account-signout').addEventListener('click', () => {
+    clearFirebaseSession();
+    byId('account-feedback').textContent = 'You have signed out.';
+  });
+  byId('enter-quick-cup').addEventListener('click', () => {
+    if (!firebaseSession?.refreshToken || accountPoints < 100) {
+      openAccountDialog();
+      return;
+    }
+    showOnlineDialog();
+    byId('room-feedback').textContent = 'Creating your Quick Cup room…';
+    connectOnline('tournament-create');
+  });
   document.querySelectorAll('[data-open-settings]').forEach(button => {
     button.addEventListener('click', showSettings);
   });
@@ -651,6 +827,7 @@
   });
   byId('leave-room').addEventListener('click', leaveOnline);
   startRound();
+  initializeAccountService();
   if (!initialSettings) showSettings();
   else if (new URLSearchParams(location.search).has('room')) showOnlineDialog();
 })();

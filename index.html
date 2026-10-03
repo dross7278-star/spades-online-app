@@ -74,6 +74,29 @@
           <button class="text-button leave-room-button" id="leave-room" type="button" hidden>Leave online table</button>
         </div>
       </dialog>
+      <dialog class="celebration-dialog" id="celebration-dialog" aria-labelledby="celebration-title">
+        <div class="celebration-confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="celebration-content">
+          <span class="eyebrow" id="celebration-eyebrow">HAND COMPLETE</span>
+          <div class="celebration-trophy" aria-hidden="true">♛</div>
+          <h1 id="celebration-title">Nil made!</h1>
+          <p id="celebration-message"></p>
+          <div class="celebration-score"><span id="celebration-team-0">You + Partner</span><strong id="celebration-final-0">0</strong><span class="celebration-score-divider">—</span><strong id="celebration-final-1">0</strong><span id="celebration-team-1">Opponents</span></div>
+          <div class="celebration-actions"><button class="primary-button" id="celebration-continue" type="button">Next hand</button><button class="secondary-button" id="celebration-close" type="button">Back to table</button></div>
+        </div>
+      </dialog>
+      <dialog class="settings-dialog account-dialog" id="account-dialog" aria-labelledby="account-title">
+        <form id="firebase-account-form">
+          <div class="dialog-heading"><span class="eyebrow">PLAYER ACCOUNT</span><button class="dialog-close" id="account-close" type="button" aria-label="Close account">×</button></div>
+          <h1 id="account-title">Your points, wherever you play.</h1>
+          <p class="dialog-copy">Sign in to earn match rewards and enter special tournaments.</p>
+          <div class="account-wallet"><span class="eyebrow">POINT WALLET</span><strong id="account-points">—</strong><small id="account-status" role="status">Checking account service…</small></div>
+          <label class="name-field" for="account-email">Email<input id="account-email" type="email" autocomplete="email" required></label>
+          <label class="name-field account-password-field" for="account-password">Password<input id="account-password" type="password" minlength="6" autocomplete="current-password" required></label>
+          <p class="account-feedback" id="account-feedback" role="status" aria-live="polite"></p>
+          <div class="dialog-actions"><button class="text-button" id="account-mode-toggle" type="button">Create an account</button><button class="text-button" id="account-signout" type="button" hidden>Sign out</button><button class="primary-button" id="account-submit" type="submit" disabled>Sign in</button></div>
+        </form>
+      </dialog>
       <section class="app-view" id="match-view" data-app-view aria-label="Live match">
         <section class="match-metrics" aria-label="Live match statistics">
           <article class="metric-tile metric-score"><span class="eyebrow">PARTNERSHIP SCORE</span><strong id="metric-team-score">0 — 0</strong><div class="metric-progress"><span id="metric-score-progress"></span></div><small><span id="metric-score-target">0 / 500</span> to win</small></article>
@@ -110,12 +133,22 @@
               <div class="trick-track" id="trick-track" aria-hidden="true"></div>
               <div class="tracker-footer"><span id="tracker-leader">First trick up for grabs</span><span id="tracker-contract">Partnership contract pending</span></div>
             </section>
+            <aside class="table-chat" id="table-chat" aria-label="Room chat" hidden>
+              <div class="chat-heading"><div><span class="eyebrow">TABLE CHAT</span><small id="chat-room-label">Private room</small></div><span class="chat-online-count" id="chat-online-count">0 / 4 online</span></div>
+              <ol class="chat-messages" id="chat-messages" role="log" aria-live="polite"></ol>
+              <form class="chat-form" id="chat-form"><label class="sr-only" for="chat-input">Message your table</label><input id="chat-input" maxlength="180" autocomplete="off" placeholder="Message your table…"><button class="primary-button" type="submit">Send</button></form>
+            </aside>
           </section>
         </section>
         </section>
       </section>
       <section class="app-view secondary-view" id="lobby-view" data-app-view aria-label="Game lobby" hidden>
         <header class="view-heading"><div><span class="eyebrow">FIND YOUR TABLE</span><h1>Game lobby</h1><p>Start a practice hand or bring your friends to a private table.</p></div><span class="lobby-status"><span class="live-dot"></span><span id="lobby-status-text">Practice table ready</span></span></header>
+        <section class="reward-hub" aria-label="Points and tournaments">
+          <article class="wallet-panel"><div><span class="eyebrow">YOUR POINTS</span><strong id="wallet-points">Sign in</strong><p id="wallet-summary">Play online to earn match rewards.</p></div><button class="secondary-button" id="open-account" type="button">Sign in / Create account</button></article>
+          <article class="tournament-card"><div class="tournament-heading"><span class="tournament-mark" aria-hidden="true">✦</span><div><span class="eyebrow">SPECIAL TOURNAMENT</span><h2>Quick Cup</h2></div></div><p>Four seats. 100 points to enter; the winning partnership shares a 400-point prize pool.</p><button class="primary-button" id="enter-quick-cup" type="button" disabled>Enter Quick Cup · 100 pts</button><small id="tournament-status">Sign in to enter tournaments.</small></article>
+          <div class="reward-goals"><span class="eyebrow">EARN POINTS ONLINE</span><span>Finish a hand <b>+10</b></span><span>Make Nil <b>+25</b></span><span>Make Blind Nil <b>+50</b></span><span>Win a match <b>+100</b></span></div>
+        </section>
         <div class="lobby-grid">
           <article class="lobby-card private-lobby-card"><div class="lobby-card-top"><span class="lobby-icon lobby-icon-online" aria-hidden="true">◎</span><span class="eyebrow">PRIVATE ROOM</span></div><h2>Play with your people.</h2><p>Create a room code to share, or join a friend’s table. Your current names and JJDA deck setting carry over.</p><div class="lobby-actions"><button class="primary-button" type="button" data-open-room>Create a room</button><button class="secondary-button" type="button" data-open-room data-room-action="join">Join with code</button></div><div class="lobby-room-status" id="lobby-room-status">No private room connected</div></article>
           <article class="lobby-card practice-lobby-card"><div class="lobby-card-top"><span class="lobby-icon" aria-hidden="true">♠</span><span class="eyebrow">PRACTICE TABLE</span></div><h2>Play a hand now.</h2><p>Deal a fresh hand against three computer players. Your scores and JJDA rules stay on this device.</p><button class="primary-button" id="practice-table-button" type="button">Open practice table <span aria-hidden="true">→</span></button><div class="practice-roster" id="practice-roster"></div></article>
