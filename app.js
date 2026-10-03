@@ -293,6 +293,7 @@
         phase = game.isGameOver() ? 'game-over' : 'round-over';
         if (phase === 'game-over') byId('game-status').textContent = game.getWinningTeam() === 0 ? 'Game. Your partnership wins.' : 'Game. Mara and Nia win.';
         else byId('game-status').textContent = `Hand ${game.roundNumber} is complete.`;
+        showLocalHandCelebration();
       }
       render();
       computerTimer = setTimeout(() => {
@@ -417,7 +418,68 @@
       : state.phase === 'bidding' ? (state.players[onlineSeatIndex].bid === null ? 'Place your bid.' : 'Waiting for the other bids.')
         : state.phase === 'play' ? (myTurn ? 'Your turn. Follow suit when you can.' : `${names[state.currentPlayerIndex]} is playing.`)
           : state.phase === 'round-over' ? 'The hand is scored. Deal the next hand when ready.' : 'The match is decided.';
+    if (state.phase === 'round-over' || state.phase === 'game-over') showOnlineHandCelebration(state);
   }
+  function successfulNilResults(players) {
+    return players.flatMap((player, seatIndex) => player.nilBid && player.tricksWon === 0
+      ? [{ seatIndex, name: player.name, blindNil: Boolean(player.blindNil), points: player.blindNil ? 150 : 100 }]
+      : []);
+  }
+
+  function showCelebration({ key, heading, title, message, nextAction, scores, teamNames }) {
+    if (lastCelebrationKey === key) return;
+    lastCelebrationKey = key;
+    celebrationNextAction = nextAction;
+    byId('celebration-eyebrow').textContent = heading;
+    byId('celebration-title').textContent = title;
+    byId('celebration-message').textContent = message;
+    byId('celebration-team-0').textContent = teamNames[0];
+    byId('celebration-team-1').textContent = teamNames[1];
+    byId('celebration-final-0').textContent = scores[0];
+    byId('celebration-final-1').textContent = scores[1];
+    byId('celebration-continue').textContent = nextAction === 'new-match' ? 'Play again' : 'Next hand';
+    byId('celebration-dialog').showModal();
+  }
+
+  function showLocalHandCelebration() {
+    const successfulNils = successfulNilResults(game.players);
+    const matchComplete = phase === 'game-over';
+    if (!matchComplete && successfulNils.length === 0) return;
+    const winningTeam = game.getWinningTeam();
+    const messages = [];
+    if (matchComplete) messages.push(winningTeam === 0 ? 'Your partnership wins the match!' : winningTeam === null ? 'The match ends in a tie.' : `${names[winningTeam === 0 ? 0 : 1]}’s partnership wins the match.`);
+    successfulNils.forEach(result => messages.push(`${result.name} made ${result.blindNil ? 'Blind Nil' : 'Nil'}: +${result.points} match points.`));
+    showCelebration({
+      key: `local:${game.roundNumber}:${phase}:${game.teamScores.join(':')}`,
+      heading: matchComplete ? 'MATCH COMPLETE' : 'NIL SUCCESS',
+      title: matchComplete ? (winningTeam === 0 ? 'Victory!' : winningTeam === null ? 'A tied match' : 'Match complete') : successfulNils.some(result => result.blindNil) ? 'Blind Nil made!' : 'Nil made!',
+      message: messages.join(' '),
+      nextAction: matchComplete ? 'new-match' : 'next-hand',
+      scores: game.teamScores,
+      teamNames: [`${names[0]} + ${names[2]}`, `${names[1]} + ${names[3]}`],
+    });
+  }
+
+  function showOnlineHandCelebration(state) {
+    const successfulNils = state.roundNilSuccesses || [];
+    const matchComplete = state.phase === 'game-over';
+    if (!matchComplete && successfulNils.length === 0) return;
+    const winningTeam = state.teamScores[0] === state.teamScores[1] ? null : state.teamScores[0] > state.teamScores[1] ? 0 : 1;
+    const ownTeam = onlineSeatIndex % 2;
+    const messages = [];
+    if (matchComplete) messages.push(winningTeam === ownTeam ? 'Your partnership wins the match!' : winningTeam === null ? 'The match ends in a tie.' : `${names[winningTeam]}’s partnership wins the match.`);
+    successfulNils.forEach(result => messages.push(`${result.name} made ${result.blindNil ? 'Blind Nil' : 'Nil'}: +${result.bonus} match points.`));
+    showCelebration({
+      key: `online:${state.roomCode}:${state.roundNumber}:${state.phase}:${state.teamScores.join(':')}`,
+      heading: matchComplete ? 'MATCH COMPLETE' : 'NIL SUCCESS',
+      title: matchComplete ? (winningTeam === ownTeam ? 'Victory!' : winningTeam === null ? 'A tied match' : 'Match complete') : successfulNils.some(result => result.blindNil) ? 'Blind Nil made!' : 'Nil made!',
+      message: messages.join(' '),
+      nextAction: matchComplete ? 'new-match' : 'next-hand',
+      scores: state.teamScores,
+      teamNames: [`${names[0]} + ${names[2]}`, `${names[1]} + ${names[3]}`],
+    });
+  }
+
   function renderRoomChat(messages) {
     const chatLog = byId('chat-messages');
     const recentMessages = messages.slice(-30);
@@ -746,6 +808,15 @@
   }
   byId('new-match-button').addEventListener('click', resetMatch);
   byId('new-game-button').addEventListener('click', resetMatch);
+  byId('celebration-continue').addEventListener('click', () => {
+    const action = celebrationNextAction;
+    lastCelebrationKey = '';
+    byId('celebration-dialog').close();
+    if (mode === 'online') sendOnlineAction(action);
+    else if (action === 'new-match') resetMatch();
+    else startRound();
+  });
+  byId('celebration-close').addEventListener('click', () => byId('celebration-dialog').close());
   byId('settings-button').addEventListener('click', showSettings);
   byId('open-account').addEventListener('click', openAccountDialog);
   byId('account-close').addEventListener('click', () => byId('account-dialog').close());

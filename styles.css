@@ -371,6 +371,93 @@ body { background-color:#060b13; background-image:linear-gradient(135deg,rgba(26
 	.table-surface.is-shuffling .shuffle-deck,.table-surface.is-shuffling .shuffle-card-left,.table-surface.is-shuffling .shuffle-card-right { animation:none; }
 	.hand.is-dealing .playing-card { animation:none; opacity:1; }
 }
+.reward-hub { display:grid; grid-template-columns:.82fr 1.18fr; gap:11px; margin-bottom:14px; }
+.wallet-panel,.tournament-card { min-width:0; padding:17px 19px; border:1px solid rgba(97,226,211,.16); border-radius:13px; background:linear-gradient(145deg,rgba(15,36,45,.96),rgba(7,18,27,.98)); }
+.wallet-panel { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.wallet-panel strong { display:block; margin-top:7px; color:#eafff8; font:700 25px 'Outfit','Trebuchet MS',sans-serif; }
+.wallet-panel p { margin:4px 0 0; color:#829f9f; font-size:9px; }
+.wallet-panel .secondary-button { flex-shrink:0; }
+.tournament-card { position:relative; overflow:hidden; border-color:rgba(171,116,255,.24); background:linear-gradient(125deg,rgba(43,27,79,.42),rgba(10,23,34,.97) 70%); }
+.tournament-heading { display:flex; align-items:center; gap:10px; }
+.tournament-mark { display:grid; place-items:center; width:31px; height:31px; color:#d0a9ff; border:1px solid rgba(171,116,255,.32); border-radius:9px; background:rgba(145,91,255,.13); font-size:20px; }
+.tournament-heading h2 { margin:2px 0 0; color:#f1eaff; font:600 17px 'Outfit','Trebuchet MS',sans-serif; }
+.tournament-card p { margin:11px 0; color:#a3adb9; font-size:10px; line-height:1.5; }
+.tournament-card .primary-button { min-height:31px; }
+.tournament-card .primary-button:disabled { opacity:.55; cursor:not-allowed; }
+.tournament-card > small { margin-left:9px; color:#9b88bd; font-size:8px; }
+.reward-goals { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; border:1px solid rgba(95,206,199,.1); border-radius:9px; background:rgba(8,21,29,.72); color:#8ba6a4; font-size:9px; }
+.reward-goals .eyebrow { margin-right:auto; font-size:7px; }
+.reward-goals b { margin-left:4px; color:#77ffd0; font:600 9px 'Space Mono',monospace; }
+.table-chat { display:grid; grid-template-rows:auto minmax(70px,150px) auto; gap:7px; margin:12px 8px 0; padding:11px 12px; border:1px solid rgba(101,219,210,.14); border-radius:11px; background:linear-gradient(145deg,rgba(13,32,41,.92),rgba(7,18,26,.96)); }
+.chat-heading { display:flex; align-items:center; justify-content:space-between; }
+.chat-heading small { display:block; margin-top:3px; color:#779797; font:400 8px 'Space Mono',monospace; }
+.chat-online-count { color:#75e9c6; font:400 8px 'Space Mono',monospace; }
+.chat-messages { display:flex; flex-direction:column; gap:5px; min-height:70px; max-height:150px; margin:0; padding:7px; overflow-y:auto; list-style:none; border:1px solid rgba(106,204,200,.08); border-radius:7px; background:rgba(3,12,18,.5); }
+.chat-message { align-self:flex-start; max-width:90%; padding:5px 8px; border:1px solid rgba(105,206,195,.12); border-radius:8px 8px 8px 2px; background:rgba(22,48,54,.78); }
+.chat-message.is-own-message { align-self:flex-end; border-color:rgba(77,235,190,.2); border-radius:8px 8px 2px 8px; background:rgba(24,70,62,.55); }
+.chat-message > div { display:flex; align-items:center; gap:8px; }
+.chat-message strong { color:#b8f9e4; font-size:8px; }
+.chat-message time { color:#738f91; font:400 7px 'Space Mono',monospace; }
+.chat-message p { margin:3px 0 0; color:#e0efeb; font-size:9px; overflow-wrap:anywhere; }
+.chat-form { display:flex; gap:7px; }
+.chat-form input { min-width:0; flex:1; height:31px; padding:0 9px; color:#e5f7f3; border:1px solid rgba(111,214,205,.16); border-radius:7px; background:#091820; font-size:9px; }
+.chat-form input:focus { outline:1px solid #5bf1ca; }
+.chat-form .primary-button { min-height:31px; }
+.celebration-dialog { position:fixed; width:min(440px,calc(100vw - 28px)); max-height:calc(100dvh - 28px); padding:0; overflow:hidden; color:var(--ink); border:1px solid rgba(102,248,207,.42); border-radius:17px; background:radial-gradient(circle at 50% 16%,rgba(41,132,112,.28),transparent 40%),linear-gradient(145deg,#10242d,#080e18); box-shadow:0 25px 100px rgba(0,0,0,.75),0 0 40px rgba(63,240,197,.12); }
+.celebration-dialog[open] { display:grid; place-items:center; }
+.celebration-dialog::backdrop { background:rgba(2,7,13,.82); backdrop-filter:blur(7px); }
+.celebration-content { position:relative; z-index:1; display:grid; justify-items:center; padding:32px 26px 25px; text-align:center; }
+.celebration-content > .eyebrow { color:#7df7ca; }
+.celebration-trophy { display:grid; place-items:center; width:72px; height:72px; margin:17px 0 7px; color:#a6ffdc; border:1px solid rgba(105,255,205,.35); border-radius:50%; background:radial-gradient(circle,rgba(75,241,193,.18),rgba(9,30,35,.9)); box-shadow:0 0 28px rgba(74,244,196,.15); font-size:39px; }
+.celebration-content h1 { margin:8px 0 4px; color:#effff8; font:700 34px/1 'Outfit','Trebuchet MS',sans-serif; }
+.celebration-content > p { max-width:340px; margin:6px 0 20px; color:#a4bfbb; font-size:12px; line-height:1.55; }
+.celebration-score { display:grid; grid-template-columns:1fr auto auto auto 1fr; align-items:center; gap:10px; width:100%; padding:15px 13px; border:1px solid rgba(99,223,204,.15); border-radius:11px; background:rgba(5,18,25,.76); }
+.celebration-score > span:first-child,.celebration-score > span:last-child { color:#a9c4c0; font-size:9px; }
+.celebration-score strong { color:#7affd0; font:700 23px 'Outfit','Trebuchet MS',sans-serif; }
+.celebration-score-divider { color:#799493; }
+.celebration-actions { display:flex; justify-content:center; gap:10px; margin-top:19px; }
+.celebration-confetti { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+.celebration-confetti i { position:absolute; top:-15px; width:5px; height:10px; border-radius:2px; background:#78ffd1; animation:confetti-drop 2.8s linear infinite; }
+.celebration-confetti i:nth-child(3n) { background:#b68aff; animation-delay:-1.2s; }
+.celebration-confetti i:nth-child(3n + 1) { background:#ff79c9; animation-delay:-.6s; }
+.celebration-confetti i:nth-child(1) { left:8%; }
+.celebration-confetti i:nth-child(2) { left:19%; animation-delay:-1.9s; }
+.celebration-confetti i:nth-child(3) { left:31%; }
+.celebration-confetti i:nth-child(4) { left:42%; animation-delay:-.9s; }
+.celebration-confetti i:nth-child(5) { left:55%; }
+.celebration-confetti i:nth-child(6) { left:66%; animation-delay:-1.5s; }
+.celebration-confetti i:nth-child(7) { left:76%; }
+.celebration-confetti i:nth-child(8) { left:87%; animation-delay:-.5s; }
+.celebration-confetti i:nth-child(9) { left:96%; }
+.celebration-confetti i:nth-child(10) { left:25%; animation-delay:-2s; }
+.celebration-confetti i:nth-child(11) { left:72%; animation-delay:-1s; }
+.celebration-confetti i:nth-child(12) { left:49%; animation-delay:-2.5s; }
+.account-dialog form { display:grid; gap:12px; padding:clamp(20px,5vw,31px); }
+.account-wallet { display:grid; justify-items:center; gap:4px; margin:3px 0 4px; padding:15px; border:1px solid rgba(103,241,203,.18); border-radius:11px; background:rgba(9,31,35,.72); }
+.account-wallet strong { color:#84ffd1; font:700 28px 'Outfit','Trebuchet MS',sans-serif; }
+.account-wallet small,.account-feedback { color:#8ca9a6; font-size:9px; text-align:center; }
+.account-feedback { min-height:14px; margin:0; }
+.account-dialog .dialog-actions { flex-wrap:wrap; gap:8px; margin-top:4px; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+@keyframes confetti-drop { 0% { opacity:0; transform:translateY(-8px) rotate(0); } 12% { opacity:1; } 100% { opacity:0; transform:translateY(420px) rotate(300deg); } }
+@media (max-width:620px) {
+	.reward-hub { grid-template-columns:1fr; gap:8px; }
+	.wallet-panel { padding:12px; }
+	.tournament-card { padding:14px; }
+	.reward-goals { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:9px 10px; }
+	.reward-goals .eyebrow { grid-column:1/-1; }
+	.table-chat { margin:8px 0 0; padding:9px; }
+	.chat-messages { max-height:125px; }
+	.celebration-content { padding:25px 17px 20px; }
+	.celebration-score { gap:5px; padding:12px 7px; }
+	.celebration-score > span:first-child,.celebration-score > span:last-child { font-size:7px; }
+	.celebration-score strong { font-size:20px; }
+	.celebration-actions { width:100%; }
+	.celebration-actions button { flex:1; }
+}
+@media (prefers-reduced-motion:reduce) {
+	.celebration-confetti i { animation:none; opacity:.35; }
+}
 .round-tracker { margin-top:11px; padding:12px 14px 11px; border:1px solid rgba(98,225,210,.15); border-radius:11px; background:linear-gradient(120deg,rgba(13,33,41,.92),rgba(7,19,27,.94)); }
 .tracker-heading,.tracker-footer { display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .tracker-heading > span:last-child { color:#a9c5c0; font:400 9px 'Space Mono',monospace; }
