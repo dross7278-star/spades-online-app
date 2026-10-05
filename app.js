@@ -172,7 +172,7 @@
       return;
     }
     if (onlineSocket && onlineSocket.readyState < WebSocket.CLOSING) onlineSocket.close();
-    byId('room-feedback').textContent = action === 'create' ? 'Creating your room…' : 'Joining the table…';
+    byId('room-feedback').textContent = action === 'tournament-create' ? 'Entering the Quick Cup…' : action === 'create' ? 'Creating your room…' : 'Joining the table…';
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const socket = new WebSocket(`${protocol}//${location.host}`);
     onlineSocket = socket;
@@ -201,15 +201,17 @@
         onlineState = message;
         mode = 'online';
         if (Number.isFinite(message.accountPoints)) accountPoints = message.accountPoints;
+        let rewardNotice = '';
         if (message.lastReward?.id && message.lastReward.id !== lastRewardId) {
           lastRewardId = message.lastReward.id;
-          byId('room-feedback').textContent = `+${message.lastReward.amount} points · ${message.lastReward.label}`;
+          rewardNotice = `+${message.lastReward.amount} points · ${message.lastReward.label}`;
         }
         updateRewardsUI();
         const connected = message.players.filter(player => player.connected).length;
-        byId('room-feedback').textContent = message.phase === 'lobby'
+        const roomStatus = message.phase === 'lobby'
           ? `Room ${message.roomCode}: waiting for players (${connected}/4).`
           : `Room ${message.roomCode}: ${connected}/4 connected.`;
+        byId('room-feedback').textContent = rewardNotice ? `${roomStatus} · ${rewardNotice}` : roomStatus;
         render();
       } else if (message.type === 'error') {
         byId('room-feedback').textContent = message.message;
