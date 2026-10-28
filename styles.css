@@ -670,3 +670,49 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible { 
 	.game-layout { animation:table-intro .55s .06s ease-out both; }
 }
 @keyframes table-intro { from { opacity:.55; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+
+.appearance-settings { margin-top:17px; padding-top:14px; border-top:1px solid var(--line); }
+.appearance-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.appearance-note { color:#b4b19f; font-size:9px; }
+.appearance-colors { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+.color-field { display:grid; grid-template-columns:1fr auto; align-items:center; gap:4px 8px; color:#ded6c2; font-size:10px; }
+.color-field input { grid-column:2; grid-row:1 / 3; width:38px; height:32px; padding:3px; border:1px solid rgba(236,222,190,.25); border-radius:5px; background:#1c241e; cursor:pointer; }
+.color-field input::-webkit-color-swatch-wrapper { padding:1px; }
+.color-field input::-webkit-color-swatch { border:0; border-radius:3px; }
+.color-field output { color:#aaa997; font:400 8px 'Space Mono',monospace; }
+.theme-switch { position:relative; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; color:#ded6c2; font-size:10px; cursor:pointer; }
+.theme-switch input { position:absolute; width:1px; height:1px; opacity:0; }
+.toggle-track { display:flex; align-items:center; width:34px; height:19px; padding:2px; border:1px solid rgba(236,222,190,.25); border-radius:12px; background:#202820; transition:background .18s,border-color .18s; }
+.toggle-track > span { width:13px; height:13px; border-radius:50%; background:#aaa997; transition:transform .18s,background .18s; }
+.theme-switch input:checked + .toggle-track { border-color:var(--table-user-accent,#dfbd78); background:color-mix(in srgb,var(--table-user-accent,#dfbd78) 28%,#202820); }
+.theme-switch input:checked + .toggle-track > span { transform:translateX(15px); background:var(--table-user-accent,#dfbd78); }
+.theme-switch input:focus-visible + .toggle-track { outline:2px solid var(--table-user-accent,#dfbd78); outline-offset:2px; }
+.table-surface { background-color:var(--table-user-felt,#1d6043); border-color:color-mix(in srgb,var(--table-user-accent,#dfbd78) 68%,transparent); }
+.table-surface::before { border-color:color-mix(in srgb,var(--table-user-accent,#dfbd78) 34%,transparent); }
+.app-shell.is-dark-table .table-surface {
+	background-color:color-mix(in srgb,var(--table-user-felt,#1d6043) 42%,#07100c);
+	background-image:linear-gradient(145deg,rgba(0,0,0,.16),rgba(0,0,0,.52)),repeating-linear-gradient(48deg,transparent 0 9px,rgba(255,255,255,.025) 9px 10px);
+}
+.table-footer span { color:var(--table-user-accent,#dfbd78); }
+.turn-indicator.is-active { background:var(--table-user-accent,#dfbd78); box-shadow:0 0 5px var(--table-user-accent,#dfbd78),0 0 14px color-mix(in srgb,var(--table-user-accent,#dfbd78) 75%,transparent); }
+.shuffle-card { color:var(--table-user-accent,#dfbd78); border-color:color-mix(in srgb,var(--table-user-accent,#dfbd78) 70%,transparent); }
+.seat-photo-button { border-color:color-mix(in srgb,var(--table-user-accent,#dfbd78) 75%,transparent); }
+.seat.is-turn .seat-avatar,.seat.is-turn .seat-photo-button { animation:portrait-pulse 2s ease-in-out infinite; }
+.playing-card.is-face-card::after { position:absolute; inset:3px; border:1px solid color-mix(in srgb,var(--table-user-accent,#dfbd78) 48%,transparent); border-radius:3px; content:''; pointer-events:none; }
+.hand.is-dealing .playing-card.is-face-card { animation-name:face-card-flip; animation-duration:.62s; }
+@keyframes face-card-flip {
+	0% { opacity:0; transform:perspective(520px) translateY(-34px) rotateY(78deg) scale(.82); }
+	68% { opacity:1; transform:perspective(520px) translateY(3px) rotateY(-8deg) scale(1.03); }
+	100% { opacity:1; transform:perspective(520px) translateY(0) rotateY(0) scale(1); }
+}
+@keyframes portrait-pulse {
+	0%,100% { box-shadow:0 0 0 2px color-mix(in srgb,var(--table-user-accent,#dfbd78) 48%,transparent); }
+	50% { box-shadow:0 0 0 5px color-mix(in srgb,var(--table-user-accent,#dfbd78) 24%,transparent); }
+}
+@media (max-width:420px) {
+	.appearance-colors { gap:8px; }
+	.appearance-note { font-size:8px; }
+}
+@media (prefers-reduced-motion:reduce) {
+	.seat.is-turn .seat-avatar,.seat.is-turn .seat-photo-button { animation:none; }
+}

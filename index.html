@@ -58,6 +58,14 @@
           <label class="variant-field" for="target-score-input">Match target
             <select id="target-score-input" name="target-score"><option value="200">200 points · quick match</option><option value="300">300 points · standard</option><option value="500">500 points · long match</option></select>
           </label>
+          <section class="appearance-settings" aria-label="Table appearance">
+            <div class="appearance-heading"><span class="eyebrow">TABLE APPEARANCE</span><span class="appearance-note">Set your felt and trim.</span></div>
+            <div class="appearance-colors">
+              <label class="color-field" for="felt-color-input"><span>Felt</span><input id="felt-color-input" type="color" value="#1d6043"><output id="felt-color-value">#1D6043</output></label>
+              <label class="color-field" for="accent-color-input"><span>Trim</span><input id="accent-color-input" type="color" value="#dfbd78"><output id="accent-color-value">#DFBD78</output></label>
+            </div>
+            <label class="theme-switch" for="dark-table-input"><span>Dark felt</span><input id="dark-table-input" type="checkbox" role="switch"><span class="toggle-track" aria-hidden="true"><span></span></span></label>
+          </section>
           <p class="variant-note">JJDA replaces 2♣ and 2♦ with the two jokers to keep a 52-card deal.</p>
           <div class="dialog-actions"><button class="text-button" id="cancel-settings" type="button">Cancel</button><button class="primary-button" type="submit">Save and deal</button></div>
         </form>

@@ -133,6 +133,9 @@
         variant: saved.variant === 'jjda' ? 'jjda' : 'standard',
         winningScore: [200, 300, 500].includes(Number(saved.winningScore)) ? Number(saved.winningScore) : 500,
         photo: typeof saved.photo === 'string' && /^data:image\/jpeg;base64,/.test(saved.photo) ? saved.photo : '',
+        feltColor: /^#[0-9a-f]{6}$/i.test(saved.feltColor) ? saved.feltColor : '#1d6043',
+        accentColor: /^#[0-9a-f]{6}$/i.test(saved.accentColor) ? saved.accentColor : '#dfbd78',
+        darkTable: saved.darkTable === true,
       };
     } catch {
       return null;
@@ -143,6 +146,9 @@
   let variant = initialSettings?.variant || 'jjda';
   let winningScore = initialSettings?.winningScore || 500;
   let profilePhoto = initialSettings?.photo || '';
+  let tableFeltColor = initialSettings?.feltColor || '#1d6043';
+  let tableAccentColor = initialSettings?.accentColor || '#dfbd78';
+  let darkTable = initialSettings?.darkTable || false;
   const game = new SpadesGame(names, winningScore, variant);
   const suitOrder = { '♥': 0, '♣': 1, '♦': 2, '♠': 3 };
   const seatIds = { 1: 'seat-1', 2: 'seat-2', 3: 'seat-3' };
@@ -164,6 +170,22 @@
   let onlineSeatIndex = -1;
   let onlineState = null;
   let activeView = 'match-view';
+
+  function applyTableAppearance(felt = tableFeltColor, accent = tableAccentColor, dark = darkTable) {
+    const shell = document.querySelector('.app-shell');
+    shell.style.setProperty('--table-user-felt', felt);
+    shell.style.setProperty('--table-user-accent', accent);
+    shell.classList.toggle('is-dark-table', dark);
+    byId('felt-color-value').textContent = felt.toUpperCase();
+    byId('accent-color-value').textContent = accent.toUpperCase();
+  }
+  function persistSettings() {
+    localStorage.setItem(settingsStorageKey, JSON.stringify({
+      names, variant, winningScore, photo: profilePhoto,
+      feltColor: tableFeltColor, accentColor: tableAccentColor, darkTable,
+    }));
+  }
+  applyTableAppearance();
 
   function connectOnline(action) {
     const roomCode = byId('room-code-input').value.trim().toUpperCase();
@@ -397,6 +419,7 @@
       const bid = player.bid === null ? 'Waiting to bid' : player.blindNil ? 'Blind Nil' : `Bid ${player.bid === 0 ? 'Nil' : player.bid}`;
       const color = index === 1 ? 'avatar-coral' : index === 2 ? 'avatar-gold' : 'avatar-blue';
       const roles = seatRoleBadges(index, state.dealerIndex, state.leadPlayerIndex);
+      byId(seatIds[index]).classList.toggle('is-turn', active);
       byId(seatIds[index]).innerHTML = `<span class="seat-avatar ${color}">${escapeHtml(player.name[0])}</span><span class="seat-copy"><strong>${escapeHtml(player.name)}</strong><small>${player.connected ? bid : 'Disconnected'} · ${player.tricksWon} tricks</small>${roles}</span><span class="turn-indicator ${active ? 'is-active' : ''}"></span>`;
     });
     const positions = { 0: 'played-south', 1: 'played-west', 2: 'played-north', 3: 'played-east' };
@@ -406,7 +429,7 @@
     hand.innerHTML = cards.map(({ card, index }, order) => {
       const legal = legalIndices.has(index);
       const label = `${cardDisplayName(card)}${legal ? ', play card' : ''}`;
-      return `<button class="playing-card ${isRed(card.suit) ? 'red-suit' : ''} ${state.phase === 'play' && state.currentPlayerIndex === onlineSeatIndex && !legal ? 'is-illegal' : ''}" type="button" data-card-index="${index}" aria-label="${label}" title="${label}" style="--card-order:${order}" ${legal ? '' : 'disabled'}><span class="card-rank">${escapeHtml(card.rank)}</span><span class="card-suit">${escapeHtml(card.suit)}</span><span class="card-corner" aria-hidden="true">${escapeHtml(card.rank)}<br>${escapeHtml(card.suit)}</span></button>`;
+      return `<button class="playing-card ${isRed(card.suit) ? 'red-suit' : ''} ${isFaceCard(card) ? 'is-face-card' : ''} ${state.phase === 'play' && state.currentPlayerIndex === onlineSeatIndex && !legal ? 'is-illegal' : ''}" type="button" data-card-index="${index}" aria-label="${label}" title="${label}" style="--card-order:${order}" ${legal ? '' : 'disabled'}><span class="card-rank">${escapeHtml(card.rank)}</span><span class="card-suit">${escapeHtml(card.suit)}</span><span class="card-corner" aria-hidden="true">${escapeHtml(card.rank)}<br>${escapeHtml(card.suit)}</span></button>`;
     }).join('');
     bidForm.hidden = state.phase !== 'bidding' || state.players[onlineSeatIndex].bid !== null || state.handHidden;
     byId('next-hand-button').hidden = state.phase !== 'round-over';
@@ -581,11 +604,13 @@
       const bid = player.bid === null ? 'Waiting to bid' : player.blindNil ? 'Blind Nil' : `Bid ${player.bid === 0 ? 'Nil' : player.bid}`;
       const color = index === 1 ? 'avatar-coral' : index === 2 ? 'avatar-gold' : 'avatar-blue';
       const roles = seatRoleBadges(index, game.dealerIndex, game.leadPlayerIndex);
+      byId(seatIds[index]).classList.toggle('is-turn', active);
       byId(seatIds[index]).innerHTML = `<span class="seat-avatar ${color}">${escapeHtml(player.name[0])}</span><span class="seat-copy"><strong>${escapeHtml(player.name)}</strong><small>${bid} · ${player.tricksWon} tricks</small>${roles}</span><span class="turn-indicator ${active ? 'is-active' : ''}"></span>`;
     }
   }
   function renderMySeat(player, active, dealerIndex = null, leadPlayerIndex = null) {
     if (!player) return;
+    byId('seat-0').classList.toggle('is-turn', active);
     const initial = escapeHtml(player.name.trim().charAt(0).toUpperCase() || '?');
     const avatar = profilePhoto
       ? `<img class="avatar-photo" src="${profilePhoto}" alt="">`
@@ -619,7 +644,7 @@
     hand.innerHTML = cards.map(({ card, index }, order) => {
       const legal = humanTurn && game.isLegalPlay(0, card);
       const label = `${cardDisplayName(card)}${legal ? ', play card' : ''}`;
-      return `<button class="playing-card ${isRed(card.suit) ? 'red-suit' : ''} ${humanTurn && !legal ? 'is-illegal' : ''}" type="button" data-card-index="${index}" aria-label="${label}" title="${label}" style="--card-order:${order}" ${legal ? '' : 'disabled'}><span class="card-rank">${card.rank}</span><span class="card-suit">${card.suit}</span><span class="card-corner" aria-hidden="true">${card.rank}<br>${card.suit}</span></button>`;
+      return `<button class="playing-card ${isRed(card.suit) ? 'red-suit' : ''} ${isFaceCard(card) ? 'is-face-card' : ''} ${humanTurn && !legal ? 'is-illegal' : ''}" type="button" data-card-index="${index}" aria-label="${label}" title="${label}" style="--card-order:${order}" ${legal ? '' : 'disabled'}><span class="card-rank">${card.rank}</span><span class="card-suit">${card.suit}</span><span class="card-corner" aria-hidden="true">${card.rank}<br>${card.suit}</span></button>`;
     }).join('');
   }
   function renderControls() {
@@ -636,6 +661,7 @@
     else byId('action-hint').textContent = 'The match is decided.';
   }
   function isRed(suit) { return suit === '♥' || suit === '♦'; }
+  function isFaceCard(card) { return ['J', 'Q', 'K'].includes(card.rank); }
   function suitName(suit) { return ({ '♠': 'spades', '♥': 'hearts', '♦': 'diamonds', '♣': 'clubs' })[suit]; }
   function cardDisplayName(card) {
     if (card.rank === 'BJ') return 'Big Joker';
@@ -657,6 +683,9 @@
     });
     byId('variant-input').value = variant;
     byId('target-score-input').value = String(winningScore);
+    byId('felt-color-input').value = tableFeltColor;
+    byId('accent-color-input').value = tableAccentColor;
+    byId('dark-table-input').checked = darkTable;
     renderPhotoPreview();
     settingsDialog.showModal();
   }
@@ -685,7 +714,7 @@
       canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
       bitmap.close();
       profilePhoto = canvas.toDataURL('image/jpeg', 0.78);
-      localStorage.setItem(settingsStorageKey, JSON.stringify({ names, variant, photo: profilePhoto }));
+      persistSettings();
       byId('photo-status').textContent = 'Photo saved on this device.';
       renderPhotoPreview();
       render();
@@ -717,12 +746,16 @@
     game.variant = variant;
     winningScore = selectedWinningScore;
     game.winningScore = winningScore;
+    tableFeltColor = byId('felt-color-input').value;
+    tableAccentColor = byId('accent-color-input').value;
+    darkTable = byId('dark-table-input').checked;
+    applyTableAppearance();
     game.teamScores = [0, 0];
     game.teamBags = [0, 0];
     game.dealerIndex = 2;
     game.roundNumber = 0;
     try {
-      localStorage.setItem(settingsStorageKey, JSON.stringify({ names, variant, winningScore, photo: profilePhoto }));
+      persistSettings();
     } catch {
       byId('score-note').textContent = 'Names are set for this match; browser storage is unavailable.';
     }
@@ -730,6 +763,16 @@
     startRound();
     if (new URLSearchParams(location.search).has('room')) showOnlineDialog();
   });
+
+  const previewTableAppearance = () => applyTableAppearance(
+    byId('felt-color-input').value,
+    byId('accent-color-input').value,
+    byId('dark-table-input').checked,
+  );
+  byId('felt-color-input').addEventListener('input', previewTableAppearance);
+  byId('accent-color-input').addEventListener('input', previewTableAppearance);
+  byId('dark-table-input').addEventListener('change', previewTableAppearance);
+  settingsDialog.addEventListener('close', () => applyTableAppearance());
 
   bidForm.addEventListener('submit', event => {
     event.preventDefault();
@@ -866,7 +909,7 @@
   byId('remove-photo').addEventListener('click', () => {
     profilePhoto = '';
     try {
-      localStorage.setItem(settingsStorageKey, JSON.stringify({ names, variant, photo: '' }));
+      persistSettings();
       byId('photo-status').textContent = 'Photo removed.';
     } catch {
       byId('photo-status').textContent = 'Could not update browser storage.';
