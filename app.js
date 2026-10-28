@@ -2,6 +2,8 @@
   'use strict';
   const { SpadesGame } = window.SpadesEngine;
   const defaultNames = ['You', 'Mara', 'Jonah', 'Nia'];
+  const avatarFaces = { smile: '😊', grin: '😄', cool: '😎', star: '🤩', wink: '😉', party: '🥳' };
+  const avatarValues = new Set([...Object.keys(avatarFaces), 'photo', 'initial']);
   const settingsStorageKey = 'spades-table-settings';
   const firebaseSessionKey = 'spades-firebase-session';
   const byId = id => document.getElementById(id);
@@ -136,6 +138,7 @@
         feltColor: /^#[0-9a-f]{6}$/i.test(saved.feltColor) ? saved.feltColor : '#1d6043',
         accentColor: /^#[0-9a-f]{6}$/i.test(saved.accentColor) ? saved.accentColor : '#dfbd78',
         darkTable: saved.darkTable === true,
+        avatar: avatarValues.has(saved.avatar) ? saved.avatar : (saved.photo ? 'photo' : 'initial'),
       };
     } catch {
       return null;
@@ -146,6 +149,7 @@
   let variant = initialSettings?.variant || 'jjda';
   let winningScore = initialSettings?.winningScore || 500;
   let profilePhoto = initialSettings?.photo || '';
+  let profileAvatar = initialSettings?.avatar || 'initial';
   let tableFeltColor = initialSettings?.feltColor || '#1d6043';
   let tableAccentColor = initialSettings?.accentColor || '#dfbd78';
   let darkTable = initialSettings?.darkTable || false;
@@ -181,7 +185,7 @@
   }
   function persistSettings() {
     localStorage.setItem(settingsStorageKey, JSON.stringify({
-      names, variant, winningScore, photo: profilePhoto,
+      names, variant, winningScore, photo: profilePhoto, avatar: profileAvatar,
       feltColor: tableFeltColor, accentColor: tableAccentColor, darkTable,
     }));
   }
@@ -612,13 +616,15 @@
     if (!player) return;
     byId('seat-0').classList.toggle('is-turn', active);
     const initial = escapeHtml(player.name.trim().charAt(0).toUpperCase() || '?');
-    const avatar = profilePhoto
+    const avatar = profileAvatar === 'photo' && profilePhoto
       ? `<img class="avatar-photo" src="${profilePhoto}" alt="">`
-      : `<span class="avatar-initial">${initial}</span>`;
+      : avatarFaces[profileAvatar]
+        ? `<span class="avatar-face" aria-hidden="true">${avatarFaces[profileAvatar]}</span>`
+        : `<span class="avatar-initial">${initial}</span>`;
     const bid = player.bid === null ? 'Waiting to bid' : player.blindNil ? 'Blind Nil' : `Bid ${player.bid === 0 ? 'Nil' : player.bid}`;
     const trickLabel = player.tricksWon === 1 ? '1 trick won' : `${player.tricksWon} tricks won`;
     const roles = seatRoleBadges(mode === 'online' ? onlineSeatIndex : 0, dealerIndex, leadPlayerIndex);
-    byId('seat-0').innerHTML = `<button class="seat-photo-button ${profilePhoto ? 'has-photo' : ''}" id="seat-photo-button" type="button" aria-label="${profilePhoto ? 'Change' : 'Add'} ${escapeHtml(player.name)}'s photo">${avatar}</button><span class="seat-copy"><strong>${escapeHtml(player.name)}</strong><small>${bid} · ${trickLabel}</small>${roles}</span><span class="turn-indicator ${active ? 'is-active' : ''}"></span>`;
+    byId('seat-0').innerHTML = `<button class="seat-photo-button ${profileAvatar === 'photo' && profilePhoto ? 'has-photo' : ''}" id="seat-photo-button" type="button" aria-label="Change ${escapeHtml(player.name)}'s profile avatar">${avatar}</button><span class="seat-copy"><strong>${escapeHtml(player.name)}</strong><small>${bid} · ${trickLabel}</small>${roles}</span><span class="turn-indicator ${active ? 'is-active' : ''}"></span>`;
   }
   function seatRoleBadges(seatIndex, dealerIndex, leadPlayerIndex) {
     const badges = [];
@@ -692,10 +698,17 @@
 
   function renderPhotoPreview() {
     const image = byId('photo-preview-image');
-    image.hidden = !profilePhoto;
+    const showPhoto = profileAvatar === 'photo' && Boolean(profilePhoto);
+    const face = avatarFaces[profileAvatar];
+    image.hidden = !showPhoto;
     image.src = profilePhoto;
-    byId('photo-preview-initial').hidden = Boolean(profilePhoto);
-    byId('photo-preview-initial').textContent = names[0].trim().charAt(0).toUpperCase() || '?';
+    byId('photo-preview-initial').hidden = showPhoto;
+    byId('photo-preview-initial').textContent = face || names[0].trim().charAt(0).toUpperCase() || '?';
+    byId('photo-preview-initial').classList.toggle('is-face-preview', Boolean(face));
+    byId('avatar-initial-choice').textContent = names[0].trim().charAt(0).toUpperCase() || '?';
+    byId('avatar-picker').querySelectorAll('[data-avatar-value]').forEach(button => {
+      button.setAttribute('aria-pressed', String(button.dataset.avatarValue === profileAvatar));
+    });
     byId('remove-photo').hidden = !profilePhoto;
   }
 
@@ -714,6 +727,7 @@
       canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
       bitmap.close();
       profilePhoto = canvas.toDataURL('image/jpeg', 0.78);
+      profileAvatar = 'photo';
       persistSettings();
       byId('photo-status').textContent = 'Photo saved on this device.';
       renderPhotoPreview();
@@ -906,8 +920,24 @@
     saveSelectedPhoto(event.target.files[0]);
     event.target.value = '';
   });
+  byId('avatar-picker').addEventListener('click', event => {
+    const choice = event.target.closest('[data-avatar-value]');
+    if (!choice) return;
+    const value = choice.dataset.avatarValue;
+    if (value === 'photo' && !profilePhoto) {
+      byId('photo-input').click();
+      return;
+    }
+    profileAvatar = value;
+    try { persistSettings(); } catch {
+      byId('photo-status').textContent = 'Could not save your avatar on this device.';
+    }
+    renderPhotoPreview();
+    render();
+  });
   byId('remove-photo').addEventListener('click', () => {
     profilePhoto = '';
+    if (profileAvatar === 'photo') profileAvatar = 'initial';
     try {
       persistSettings();
       byId('photo-status').textContent = 'Photo removed.';

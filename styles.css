@@ -716,3 +716,41 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible { 
 @media (prefers-reduced-motion:reduce) {
 	.seat.is-turn .seat-avatar,.seat.is-turn .seat-photo-button { animation:none; }
 }
+.avatar-field { margin-top:15px; padding-top:14px; border-top:1px solid var(--line); }
+.avatar-field-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.avatar-picker { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; margin-top:11px; }
+.avatar-choice {
+	position:relative;
+	display:grid;
+	place-items:center;
+	width:100%;
+	aspect-ratio:1;
+	min-width:0;
+	padding:0;
+	color:var(--ink);
+	border:1px solid rgba(236,222,190,.18);
+	border-radius:8px;
+	background:rgba(255,249,235,.035);
+	cursor:pointer;
+	transition:background .16s,border-color .16s,transform .16s,box-shadow .16s;
+}
+.avatar-choice:hover { transform:translateY(-2px); border-color:var(--table-user-accent,#dfbd78); }
+.avatar-choice[aria-pressed="true"] { border-color:var(--table-user-accent,#dfbd78); background:color-mix(in srgb,var(--table-user-accent,#dfbd78) 13%,transparent); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--table-user-accent,#dfbd78) 28%,transparent); }
+.avatar-choice-face { display:block; font-size:23px; line-height:1; animation:avatar-bob 2.6s ease-in-out infinite; }
+.avatar-choice:nth-child(2n) .avatar-choice-face { animation-delay:-.8s; }
+.avatar-choice:nth-child(3n) .avatar-choice-face { animation-delay:-1.6s; }
+.avatar-choice-photo { color:var(--table-user-accent,#dfbd78); font-size:24px; line-height:1; }
+.avatar-choice-initial { color:var(--table-user-accent,#dfbd78); font:600 16px 'DM Mono',monospace; }
+.seat-photo-button .avatar-face { display:grid; width:100%; height:100%; place-items:center; font-size:25px; line-height:1; animation:avatar-bob 2.6s ease-in-out infinite; }
+.photo-preview .is-face-preview { display:grid; width:100%; height:100%; place-items:center; font-size:35px; line-height:1; }
+.seat-photo-button.has-photo .avatar-face { animation:none; }
+.avatar-choice:focus-visible { outline:2px solid var(--table-user-accent,#dfbd78); outline-offset:2px; }
+@keyframes avatar-bob {
+	0%,100% { transform:translateY(0) rotate(0) scale(1); }
+	35% { transform:translateY(-2px) rotate(-5deg) scale(1.06); }
+	70% { transform:translateY(1px) rotate(4deg) scale(.98); }
+}
+@media (prefers-reduced-motion:reduce) {
+	.avatar-choice-face,.seat-photo-button .avatar-face { animation:none; }
+	.avatar-choice:hover { transform:none; }
+}
